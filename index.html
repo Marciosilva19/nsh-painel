@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NSH Painel">
+<meta name="theme-color" content="#0A0A0B">
+<title>NSH · Gestão</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --ink:#0A0A0B;--panel:#141415;--panel-2:#1C1C1E;--line:#29292C;--line-soft:#202023;
+    --paper:#EDEDEF;--muted:#8E8E96;
+    --brand:#EE6331;--brand-dark:#C14D24;--brand-ink:#FFFFFF;--brand-soft:rgba(238,99,49,0.14);
+    --good:#4ADE80;--warn:#F87171;--amber:#FBBF24;
+    --r-lg:16px;--r-md:12px;--r-sm:10px;
+    --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'IBM Plex Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--ink);color:var(--paper);
+    font-family:var(--font);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;}
+  body{-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-0.01em;}
+  p{margin:0;}
+  button{font-family:inherit;cursor:pointer;color:inherit;}
+  .num{font-variant-numeric:tabular-nums;}
+  .good-text{color:var(--good);} .warn-text{color:var(--warn);} .amber-text{color:var(--amber);}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+
+  /* ---------- Estrutura ---------- */
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;height:100vh;height:100dvh;
+    padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
+    max-width:520px;margin:0 auto;background:var(--ink);}
+  #app-header{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--line);background:var(--ink);}
+  .brand-mark{font-weight:700;font-size:12px;letter-spacing:0.06em;color:var(--brand-ink);background:var(--brand);border-radius:8px;padding:6px 8px;line-height:1;}
+  .header-title{flex:1 1 auto;font-size:16px;font-weight:600;line-height:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mode-chip{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 10px;flex:0 0 auto;}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:0 0 auto;}
+  .sync-dot.sync-warn{background:var(--warn);}
+  .icon-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--paper);border-radius:10px;display:flex;align-items:center;justify-content:center;width:40px;height:40px;flex:0 0 auto;font-size:15px;padding:0;}
+  .icon-btn svg{width:20px;height:20px;}
+
+  main#app-content{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px calc(28px + env(safe-area-inset-bottom,0px));}
+  .stack{display:flex;flex-direction:column;gap:12px;}
+  .list{display:flex;flex-direction:column;gap:8px;}
+  .section-label{font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:24px 0 10px;}
+  .tab-sub{color:var(--muted);font-size:13px;line-height:1.5;}
+  .intro{margin-bottom:14px;}
+  .hint{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.5;}
+  .loading-state{color:var(--muted);font-size:13px;padding:40px 0;text-align:center;}
+  .empty-state{color:var(--muted);font-size:13px;line-height:1.5;text-align:center;padding:26px 16px;border:1px dashed var(--line);border-radius:var(--r-md);}
+
+  #app-nav{flex:0 0 auto;display:flex;border-top:1px solid var(--line);background:var(--ink);padding-bottom:env(safe-area-inset-bottom,0px);}
+  .nav-btn{position:relative;flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:var(--muted);padding:10px 2px 8px;font-size:11px;font-weight:500;}
+  .nav-btn svg{width:22px;height:22px;}
+  .nav-btn.on{color:var(--paper);}
+  .nav-btn.on::before{content:'';position:absolute;top:0;left:28%;right:28%;height:2px;background:var(--brand);border-radius:0 0 2px 2px;}
+  .nav-btn.on svg{color:var(--brand);}
+
+  /* ---------- Cartões ---------- */
+  .card{position:relative;overflow:hidden;background:linear-gradient(150deg,#1F1F21 0%,#111112 72%);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r-lg);padding:16px;}
+  .card::after{content:'';position:absolute;right:-70px;top:-90px;width:190px;height:190px;border-radius:50%;border:1px solid rgba(255,255,255,0.05);
+    background:radial-gradient(circle at 25% 75%,rgba(255,255,255,0.06),transparent 62%);pointer-events:none;}
+  .card > *{position:relative;z-index:1;}
+  .card-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;}
+  .card-title svg{width:15px;height:15px;color:var(--brand);flex:0 0 auto;}
+
+  .hero{padding:0;background:radial-gradient(120% 150% at 100% 0%,rgba(238,99,49,0.22),transparent 55%),linear-gradient(150deg,#1F1F21 0%,#101011 75%);}
+  .hero::after{display:none;}
+  .hero-main{padding:18px 18px 16px;}
+  .hero-brand{font-size:12px;font-weight:600;letter-spacing:0.14em;}
+  .hero-label{font-size:12.5px;color:var(--muted);margin-top:10px;}
+  .hero-big{font-size:38px;font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums;}
+  .pill-badge{display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:var(--good);background:rgba(74,222,128,0.12);border-radius:999px;padding:4px 10px;}
+  .pill-badge.neg{color:var(--warn);background:rgba(248,113,113,0.12);}
+  .hero-split{display:flex;border-top:1px solid var(--line);}
+  .hero-split > div{flex:1 1 0;min-width:0;padding:12px 14px;display:flex;flex-direction:column;gap:4px;}
+  .hero-split > div + div{border-left:1px solid var(--line);}
+  .hero-split span{font-size:11.5px;color:var(--muted);}
+  .hero-split strong{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+
+  .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .trio > div{display:flex;flex-direction:column;gap:4px;min-width:0;}
+  .trio span{font-size:11.5px;color:var(--muted);}
+  .trio strong{font-size:21px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+  .trio.money strong{font-size:15.5px;}
+
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+  .tag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;border-radius:999px;padding:4px 10px;background:var(--panel-2);color:var(--muted);white-space:nowrap;}
+  .tag-good{color:var(--good);background:rgba(74,222,128,0.12);}
+  .tag-warn{color:var(--amber);background:rgba(251,191,36,0.12);}
+  .tag-bad{color:var(--warn);background:rgba(248,113,113,0.12);}
+  .tag-brand{color:var(--brand);background:var(--brand-soft);}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .stat-card{padding:13px 14px;display:flex;flex-direction:column;gap:6px;}
+  .stat-card span{font-size:12px;color:var(--muted);}
+  .stat-card strong{font-size:18px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+
+  /* ---------- Gráficos ---------- */
+  .bars{display:flex;flex-direction:column;gap:12px;}
+  .bar-row{display:flex;align-items:center;gap:10px;}
+  .bar-label{width:112px;flex:0 0 auto;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bar-track{flex:1 1 auto;min-width:30px;height:8px;background:#232326;border-radius:6px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:6px;background:#55555C;}
+  .bar-fill.cost{background:#3A3A3F;}
+  .bar-fill.profit{background:repeating-linear-gradient(135deg,var(--brand) 0 5px,var(--brand-dark) 5px 10px);}
+  .bar-fill.loss{background:var(--warn);}
+  .bar-value{width:78px;flex:0 0 auto;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;}
+
+  .gauge{position:relative;max-width:250px;margin:4px auto 0;}
+  .gauge svg{width:100%;display:block;}
+  .gauge-val{position:absolute;left:0;right:0;bottom:0;text-align:center;}
+  .gauge-val strong{display:block;font-size:30px;font-weight:600;letter-spacing:-0.02em;line-height:1.1;}
+  .gauge-val span{font-size:11.5px;color:var(--muted);}
+  .gauge-scale{display:flex;justify-content:space-between;max-width:250px;margin:6px auto 0;font-size:11px;color:var(--muted);}
+
+  .insight{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;line-height:1.5;}
+  .insight:last-child{border-bottom:none;padding-bottom:0;}
+  .card-title + .insight{padding-top:0;}
+  .insight i{flex:0 0 auto;width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--good);}
+  .insight.warn i{background:var(--amber);} .insight.bad i{background:var(--warn);}
+  .insight b{font-weight:600;}
+
+  /* ---------- Botões ---------- */
+  .btn-primary,.btn-secondary,.btn-danger,.btn-ghost{border-radius:var(--r-sm);border:1px solid transparent;font-size:14px;font-weight:600;padding:12px 16px;min-height:44px;}
+  .btn-primary{background:var(--brand);color:var(--brand-ink);}
+  .btn-secondary{background:var(--panel-2);border-color:var(--line);color:var(--paper);}
+  .btn-danger{background:transparent;border-color:rgba(248,113,113,0.5);color:var(--warn);}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--muted);font-size:12.5px;padding:8px 12px;min-height:36px;}
+  .is-off{opacity:0.45;}
+  .wide-btn{width:100%;margin-top:14px;}
+  .btn-row{display:flex;gap:8px;margin-top:12px;}
+  .btn-row > button{flex:1 1 0;min-width:0;padding-left:8px;padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .btn-add{width:100%;padding:14px;border-radius:var(--r-md);border:1px dashed var(--line);background:transparent;color:var(--paper);font-size:14px;font-weight:600;margin-top:12px;}
+  .btn-add:active{border-color:var(--brand);}
+  .back-btn{background:none;border:none;color:var(--brand);font-size:14px;font-weight:600;padding:4px 0;margin:-6px 0 10px;display:inline-flex;align-items:center;gap:4px;min-height:36px;}
+
+  .pill-row{display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap;margin:0 -16px 14px;padding:0 16px 2px;scrollbar-width:none;}
+  .pill-row::-webkit-scrollbar{display:none;}
+  .pill{flex:0 0 auto;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:13px;font-weight:500;padding:8px 14px;}
+  .pill.on{background:var(--paper);border-color:var(--paper);color:var(--ink);font-weight:600;}
+
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:12px;}
+  .seg-btn{border:none;background:transparent;color:var(--muted);font-size:13.5px;font-weight:600;padding:9px 4px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;}
+  .seg-btn.on{background:var(--panel-2);color:var(--paper);box-shadow:inset 0 0 0 1px var(--line);}
+  .seg-badge{font-size:11px;background:var(--brand);color:#fff;border-radius:999px;padding:1px 7px;line-height:1.5;}
+
+  /* ---------- Produtos ---------- */
+  .product-card{width:100%;text-align:left;color:var(--paper);padding:14px 14px 14px 17px;display:block;font-family:inherit;}
+  .product-card::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--line);z-index:2;}
+  .product-card.h-good::before{background:var(--good);}
+  .product-card.h-warn::before{background:var(--amber);}
+  .product-card.h-bad::before{background:var(--warn);}
+  .pc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .product-name{font-size:15px;font-weight:600;}
+  .product-sku{font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono);}
+  .pc-price{text-align:right;flex:0 0 auto;}
+  .pc-price strong{display:block;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .pc-price span{font-size:11px;color:var(--muted);}
+  .mini-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);}
+  .mini-stat span{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mini-stat strong{display:block;font-size:13.5px;font-weight:600;margin-top:3px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+
+  /* ---------- Stock ---------- */
+  .stock-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+  .stock-tot{text-align:right;flex:0 0 auto;}
+  .stock-tot strong{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .stock-tot span{font-size:11px;color:var(--muted);}
+  .vgrid{display:grid;grid-template-columns:minmax(0,1fr) 50px 44px 52px;align-items:center;gap:6px;width:100%;}
+  .vgrid > span{text-align:right;font-variant-numeric:tabular-nums;}
+  .vgrid > span:first-child{text-align:left;}
+  .vgrid-head{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding:0 8px 6px;}
+  .vrow{background:transparent;border:none;border-top:1px solid var(--line-soft);padding:11px 8px;font-family:inherit;font-size:14px;color:var(--paper);text-align:left;border-radius:0;margin:0;}
+  .vrow:active{background:var(--panel-2);}
+  .vname{display:flex !important;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden;}
+  .vname em{font-style:normal;overflow:hidden;text-overflow:ellipsis;}
+  .vname i{width:7px;height:7px;border-radius:50%;background:var(--good);flex:0 0 auto;}
+  .st-low .vname i{background:var(--amber);}
+  .st-out .vname i,.st-short .vname i{background:var(--warn);}
+  .st-low .vav{color:var(--amber);font-weight:600;}
+  .st-out .vav,.st-short .vav{color:var(--warn);font-weight:600;}
+  .vres{color:var(--muted);}
+
+  .move-row{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);text-align:left;color:var(--paper);font-family:inherit;}
+  .move-row:active{background:var(--panel-2);}
+  .move-main{min-width:0;}
+  .move-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .move-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  .move-qty{flex:0 0 auto;text-align:right;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .move-qty small{display:block;font-size:11.5px;font-weight:500;color:var(--muted);margin-top:2px;}
+  .move-qty.pos{color:var(--good);}
+
+  .res-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .res-line{display:flex;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:13.5px;line-height:1.4;}
+  .res-line strong{flex:0 0 auto;font-variant-numeric:tabular-nums;}
+  .res-note{font-size:12px;color:var(--muted);margin-top:8px;}
+  .closed-row{display:flex;justify-content:space-between;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--muted);}
+  .closed-row div{min-width:0;}
+  .closed-row b{color:var(--paper);font-weight:500;}
+
+  /* ---------- Mais / Coleções ---------- */
+  .menu-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;text-align:left;font-family:inherit;color:var(--paper);}
+  .menu-row strong{display:block;font-size:15px;font-weight:600;}
+  .menu-row span{display:block;font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .menu-row i{font-style:normal;font-size:22px;color:var(--muted);flex:0 0 auto;}
+  .col-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .col-name{font-size:16px;font-weight:600;}
+  .st-bar{height:10px;border-radius:6px;background:#232326;overflow:hidden;margin:14px 0 6px;}
+  .st-bar > div{height:100%;border-radius:6px;background:repeating-linear-gradient(135deg,var(--brand) 0 5px,var(--brand-dark) 5px 10px);}
+  .st-legend{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);}
+  .st-legend b{color:var(--paper);font-weight:600;}
+  .col-prods{margin-top:12px;}
+  .col-prod{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:9px 0;border-top:1px solid var(--line-soft);}
+  .col-prod span:last-child{color:var(--muted);flex:0 0 auto;font-variant-numeric:tabular-nums;}
+
+  .list-card{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;}
+  .list-card-title{font-size:14.5px;font-weight:600;}
+  .list-card-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+  .list-card-actions{display:flex;gap:6px;flex:0 0 auto;}
+
+  /* ---------- Simulação ---------- */
+  .share-row{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .share-title{font-size:14.5px;font-weight:600;}
+  .share-input{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
+  .share-input input{width:78px;text-align:right;}
+  .share-input span{color:var(--muted);font-size:14px;}
+  .sim-row-name{font-size:14.5px;font-weight:600;margin-bottom:10px;}
+  .sim-row-units{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .sim-units-input{width:96px !important;flex:0 0 auto;}
+  .sim-units-label{font-size:12px;color:var(--muted);}
+  .sim-figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:11.5px;color:var(--muted);padding-top:12px;border-top:1px solid var(--line-soft);}
+  .sim-figs > span:last-child{text-align:right;}
+  .sim-figs strong{display:block;font-size:13.5px;color:var(--paper);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+  .sim-figs strong.warn-text{color:var(--warn);}
+
+  .kv-card{padding:4px 16px;}
+  .kv{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft);}
+  .kv:last-child{border-bottom:none;}
+  .kv span{font-size:13px;color:var(--muted);}
+  .kv span em{font-style:normal;opacity:0.7;}
+  .kv strong{font-size:15px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}
+  .kv.total{border-top:1px solid var(--line);margin-top:2px;}
+
+  /* ---------- Formulários ---------- */
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+  .label-text{display:block;margin-bottom:6px;font-weight:500;}
+  .field-row{display:flex;gap:10px;}
+  .field-row > label{flex:1 1 0;min-width:0;}
+  input,select,textarea{font-size:16px;font-family:var(--font);font-variant-numeric:tabular-nums;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:12px 13px;color:var(--paper);width:100%;-webkit-appearance:none;appearance:none;min-height:46px;margin:0;}
+  input[type=date]{display:block;min-width:0;text-align:left;}
+  input[type=date]::-webkit-date-and-time-value{text-align:left;}
+  select{padding-right:34px;}
+  textarea{min-height:90px;resize:vertical;font-family:var(--mono);}
+  input::placeholder,textarea::placeholder{color:var(--muted);opacity:0.6;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(238,99,49,0.16);}
+  .select-wrap{position:relative;}
+  .select-wrap::after{content:'▾';position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+  .info-box{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin:-4px 0 14px;line-height:1.5;}
+  .info-box strong{color:var(--paper);font-weight:600;}
+  .info-box strong.warn-text{color:var(--warn);}
+  .form-section{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin:22px 0 10px;}
+  .cost-chain-head{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;}
+  .cost-chain-head > span{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;}
+  .cost-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .cost-row .cost-label{flex:1.4 1 0;min-width:0;font-size:15px;}
+  .cost-row .cost-value{flex:1 1 0;min-width:0;}
+  .login-card h2{font-size:20px;margin-bottom:6px;}
+  .login-card .tab-sub{margin-bottom:18px;}
+
+  /* ---------- Janelas ---------- */
+  #modal-root{position:fixed;inset:0;z-index:200;pointer-events:none;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.18s ease;pointer-events:auto;}
+  .modal-sheet{width:100%;max-width:520px;max-height:90vh;max-height:90dvh;background:var(--ink);border-radius:20px 20px 0 0;border:1px solid var(--line);border-bottom:none;
+    display:flex;flex-direction:column;overflow:hidden;animation:slideUp 0.22s ease;}
+  .modal-sheet-sm{max-height:72vh;max-height:72dvh;}
+  .modal-head{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line);}
+  .modal-head h2{font-size:18px;}
+  .modal-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px;}
+  .modal-foot{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);}
+  .modal-foot-actions{display:flex;gap:8px;margin-left:auto;}
+  .confirm-sheet{width:calc(100% - 32px);max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;margin:auto;animation:popIn 0.18s ease;}
+  .confirm-sheet p{font-size:14.5px;line-height:1.5;margin-bottom:16px;}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:8px;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  @keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  @keyframes popIn{from{transform:scale(0.96);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+  #toast-root{position:fixed;top:0;left:0;right:0;z-index:300;display:flex;justify-content:center;pointer-events:none;}
+  .toast{margin-top:calc(10px + env(safe-area-inset-top,0px));padding:11px 18px;border-radius:12px;background:var(--paper);color:var(--ink);font-size:13px;font-weight:600;line-height:1.45;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:toastIn 0.2s ease;max-width:92%;text-align:center;}
+  .toast-warn{background:var(--warn);color:#2a0606;}
+  @keyframes toastIn{from{transform:translateY(-14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+  /* ---------- Relatório ---------- */
+  .report-sheet-wrap{background:#FFFFFF;color:#111;border-radius:10px;padding:18px 16px;font-family:var(--font);}
+  .report-sheet-wrap h1{font-size:19px;color:#111;margin:0 0 2px;font-weight:700;}
+  .report-meta{font-size:11.5px;color:#555;margin:0 0 16px;line-height:1.5;}
+  .report-section-title{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#777;margin:18px 0 6px;font-weight:600;}
+  .report-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;font-variant-numeric:tabular-nums;}
+  .report-table td{border-bottom:1px solid #DDD;padding:6px 3px;text-align:left;overflow-wrap:break-word;word-break:break-word;}
+  .report-table .num{text-align:right;}
+  .report-table tr.total-row td{font-weight:700;border-top:2px solid #111;border-bottom:none;}
+  .report-table .neg{color:#C22;}
+  .report-chain{font-size:10px;color:#666;padding-left:8px;}
+  .report-note{font-size:10.5px;color:#666;margin-top:14px;line-height:1.5;}
+
+  @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:0.01ms !important;transition-duration:0.01ms !important;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="app-header">
+    <span class="brand-mark">NSH</span>
+    <span class="header-title" id="header-title">Painel</span>
+    <span class="mode-chip" id="mode-chip" hidden><span class="sync-dot sync-warn" id="sync-dot"></span><span id="mode-text">Erro ao guardar</span></span>
+    <button class="icon-btn" id="btn-settings" aria-label="Definições"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.4" fill="#1C1C1E"/><circle cx="15" cy="16" r="2.4" fill="#1C1C1E"/></svg></button>
+  </header>
+
+  <main id="app-content"><div class="loading-state">A carregar...</div></main>
+
+  <nav id="app-nav">
+    <button class="nav-btn" data-tab="dashboard"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" transform="rotate(45 12 12)"/></svg><span>Painel</span></button>
+    <button class="nav-btn" data-tab="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg><span>Produtos</span></button>
+    <button class="nav-btn" data-tab="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5L12 3l9 4.5L12 12z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5L12 21l9-4.5"/></svg><span>Stock</span></button>
+    <button class="nav-btn" data-tab="sim"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5L19 17H5Z"/></svg><span>Simulação</span></button>
+    <button class="nav-btn" data-tab="more"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg><span>Mais</span></button>
+  </nav>
+</div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+/* ============================================================
+   CONFIGURAÇÃO (só necessária na versão publicada no GitHub)
+   Cola aqui o URL e a chave "anon/publishable" do teu Supabase.
+   Nunca uses a chave "service_role" / "secret".
+   Deixa vazio para guardar apenas neste dispositivo.
+   ============================================================ */
+var NSH_CONFIG = {
+  SUPABASE_URL: 'https://mfsdpzwtgdnlnmsfiixw.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_gCtPWv7-Uehkoy7l0v2NTA_9-v7lXB-'
+};
+
+function nshBoot() {
+  'use strict';
+  try {
+
+  /* ================= constantes ================= */
+  const LS_KEY = 'nsh_dashboard_v1';
+  const LS_SESSION = 'nsh_sb_session';
+  const PERIODS = {
+    weekly:     { label: 'Semana',        factor: 7 / 30 },
+    monthly:    { label: 'Mês',           factor: 1 },
+    quarterly:  { label: 'Trimestre',     factor: 3 },
+    semiannual: { label: 'Semestre',      factor: 6 },
+    annual:     { label: 'Ano',           factor: 12 },
+    custom:     { label: 'Personalizado', factor: null }
+  };
+  const MOVE_TYPES = {
+    sale:   { label: 'Venda',              sign: -1 },
+    in:     { label: 'Entrada de stock',   sign: 1 },
+    return: { label: 'Devolução',          sign: 1 },
+    sample: { label: 'Amostra / oferta',   sign: -1 },
+    loss:   { label: 'Perda / defeito',    sign: -1 },
+    adjust: { label: 'Ajuste de contagem', sign: 0 }
+  };
+  const CHANNELS = { loja: 'Loja física', online: 'Instagram / WhatsApp', site: 'Site', revenda: 'Revenda', preenc: 'Pré-encomenda' };
+  const RES_KINDS = { preenc: 'Pré-encomenda', revenda: 'Revenda' };
+  const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const SPARK = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.2 6.3L21 10l-6.8 1.7L12 18l-2.2-6.3L3 10l6.8-1.7z"/></svg>';
+
+  /* ================= estado da interface ================= */
+  let state = null;
+  let activeTab = 'dashboard';
+  let stockView = 'stock', stockFilter = 'all', moveFilter = 'all', moveLimit = 40;
+  let lastMoveType = 'sale';
+  let editingProductId = null, editingFixedId = null, editingCollectionId = null;
+  let confirmCallback = null, toastTimer = null;
+  const mv = { priceTouched: false, costTouched: false, lastType: null, lastVid: null };
+  const rs = { priceTouched: false };
+  const sim = { period: 'monthly', customDays: 30, overrides: {} };
+
+  /* ================= utilitários ================= */
+  const byId = id => document.getElementById(id);
+  const $all = (sel, root) => Array.prototype.slice.call((root || document).querySelectorAll(sel));
+  const genId = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  function toNum(v) {
+    let s = String(v == null ? '' : v).trim().replace(/\s/g, '');
+    if (s.indexOf(',') > -1 && s.indexOf('.') > -1) s = s.replace(/\./g, '');
+    s = s.replace(',', '.');
+    const n = parseFloat(s);
+    return isFinite(n) && n > 0 ? n : 0;
+  }
+  const toInt = v => Math.round(toNum(v));
+  const round1 = n => Math.round(n * 10) / 10;
+  const round2 = n => Math.round(n * 100) / 100;
+  const plain = n => String(round2(n));
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function fmtUSD(n) {
+    if (!isFinite(n)) n = 0;
+    const neg = n < -0.004; n = Math.abs(n);
+    return (neg ? '−' : '') + '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtPct(n) {
+    if (!isFinite(n)) n = 0;
+    return n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  }
+  const fmtSigned = n => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n);
+  const setText = (id, t) => { const el = byId(id); if (el) el.textContent = t; };
+  const getVal = id => { const el = byId(id); return el ? el.value : ''; };
+  const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+  const cardTitle = t => '<h2 class="card-title">' + SPARK + t + '</h2>';
+  const emptyState = msg => '<div class="empty-state">' + esc(msg) + '</div>';
+  function opts(obj, sel) {
+    return Object.keys(obj).map(k => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(typeof obj[k] === 'string' ? obj[k] : obj[k].label) + '</option>').join('');
+  }
+
+  function isoDate(d) { const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+  const todayISO = () => isoDate(new Date());
+  function daysAgoISO(n) { const d = new Date(); d.setDate(d.getDate() - n); return isoDate(d); }
+  function parseISO(s) { const p = String(s || '').split('-'); return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null; }
+  function daysSince(s) { const d = parseISO(s); if (!d) return 0; const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((t - d) / 86400000); }
+  function fmtDate(s) {
+    const d = parseISO(s); if (!d || isNaN(d)) return '—';
+    return d.getDate() + ' ' + MONTHS[d.getMonth()] + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');
+  }
+  function agoText(s) {
+    const n = daysSince(s);
+    if (n === 0) return 'hoje';
+    if (n < 0) return 'daqui a ' + plural(-n, 'dia', 'dias');
+    return 'há ' + plural(n, 'dia', 'dias');
+  }
+  const parseList = s => String(s || '').split(',').map(x => x.trim()).filter((x, i, a) => x && a.indexOf(x) === i);
+
+  /* ================= dados de exemplo ================= */
+  function defaultState() {
+    const collections = [
+      { id: 'col_base', name: 'Coleção Base', date: daysAgoISO(75) },
+      { id: 'col_drop1', name: 'Drop 01 · Outono', date: daysAgoISO(21) }
+    ];
+    function mk(id, name, sku, col, price, ws, monthly, sizes, colors, costs) {
+      const p = { id, name, sku, collectionId: col, price, wsPrice: ws, monthlySales: monthly, minStock: 2, sizes, colors,
+        costs: costs.map((c, i) => ({ id: 'c' + (i + 1), label: c[0], value: c[1] })), variants: [] };
+      (sizes.length ? sizes : ['Único']).forEach(s => (colors.length ? colors : ['']).forEach(c => {
+        p.variants.push({ id: id + '_' + (s + c).replace(/[^A-Za-z0-9]/g, ''), size: s, color: c });
+      }));
+      return p;
+    }
+    const hd = mk('prod_1', 'Hoodie NSH Classic', 'NSH-HD-01', 'col_base', 65, 37, 25, ['S', 'M', 'L', 'XL'], ['Preto'],
+      [['Tecido e matéria-prima', 14], ['Confecção', 9], ['Estampagem', 5], ['Embalagem', 2]]);
+    const ts = mk('prod_2', 'T-Shirt NSH Signature', 'NSH-TS-01', 'col_base', 35, 21, 40, ['S', 'M', 'L', 'XL'], ['Preto', 'Branco'],
+      [['Tecido e matéria-prima', 7], ['Confecção', 5], ['Estampagem', 3.5], ['Embalagem', 1.5]]);
+    const bn = mk('prod_3', 'Boné NSH', 'NSH-BN-01', 'col_drop1', 25, 13.5, 20, ['Único'], ['Preto', 'Bege'],
+      [['Matéria-prima', 6], ['Confecção / Bordado', 4], ['Embalagem', 1]]);
+    const cg = mk('prod_4', 'Calças Cargo NSH', 'NSH-CG-01', 'col_drop1', 70, 43, 15, ['S', 'M', 'L', 'XL'], ['Preto'],
+      [['Tecido e matéria-prima', 18], ['Confecção', 12], ['Acessórios (fecho, botões)', 3], ['Embalagem', 2]]);
+
+    const movements = []; let seq = 0;
+    const vid = (p, s, c) => p.variants.find(v => v.size === s && v.color === (c || '')).id;
+    const add = (type, p, s, c, qty, d, extra) => movements.push(Object.assign({ id: 'm' + (++seq), type, productId: p.id, variantId: vid(p, s, c), qty, date: daysAgoISO(d), note: '' }, extra || {}));
+    const entry = (p, s, c, qty, d, cost) => add('in', p, s, c, qty, d, { unitCost: cost });
+    const sale = (p, s, c, qty, ch, d) => add('sale', p, s, c, qty, d, { channel: ch, unitPrice: ch === 'revenda' ? p.wsPrice : p.price });
+
+    [['S', 6], ['M', 12], ['L', 12], ['XL', 6]].forEach(x => entry(hd, x[0], 'Preto', x[1], 75, 30));
+    [['S', 6], ['M', 10], ['L', 10], ['XL', 6]].forEach(x => entry(ts, x[0], 'Preto', x[1], 75, 17));
+    [['S', 4], ['M', 8], ['L', 8], ['XL', 4]].forEach(x => entry(ts, x[0], 'Branco', x[1], 75, 17));
+    entry(hd, 'M', 'Preto', 6, 30, 31); entry(hd, 'L', 'Preto', 6, 30, 31);
+    entry(bn, 'Único', 'Preto', 15, 21, 11); entry(bn, 'Único', 'Bege', 10, 21, 11);
+    [['S', 4], ['M', 8], ['L', 8], ['XL', 4]].forEach(x => entry(cg, x[0], 'Preto', x[1], 21, 35));
+
+    sale(hd, 'S', 'Preto', 2, 'loja', 70); sale(hd, 'S', 'Preto', 2, 'online', 50); sale(hd, 'S', 'Preto', 1, 'online', 12);
+    sale(hd, 'M', 'Preto', 4, 'loja', 68); sale(hd, 'M', 'Preto', 3, 'online', 55); sale(hd, 'M', 'Preto', 4, 'revenda', 40);
+    sale(hd, 'M', 'Preto', 2, 'online', 18); sale(hd, 'M', 'Preto', 1, 'site', 6);
+    sale(hd, 'L', 'Preto', 3, 'online', 60); sale(hd, 'L', 'Preto', 4, 'revenda', 40); sale(hd, 'L', 'Preto', 2, 'loja', 25); sale(hd, 'L', 'Preto', 2, 'online', 9);
+    sale(hd, 'XL', 'Preto', 2, 'online', 45); sale(hd, 'XL', 'Preto', 1, 'loja', 15);
+    sale(ts, 'S', 'Preto', 3, 'online', 65); sale(ts, 'S', 'Preto', 2, 'loja', 20);
+    sale(ts, 'M', 'Preto', 4, 'loja', 60); sale(ts, 'M', 'Preto', 3, 'revenda', 40); sale(ts, 'M', 'Preto', 2, 'online', 10);
+    sale(ts, 'L', 'Preto', 3, 'online', 58); sale(ts, 'L', 'Preto', 3, 'revenda', 40); sale(ts, 'L', 'Preto', 1, 'site', 4);
+    sale(ts, 'XL', 'Preto', 2, 'online', 30);
+    sale(ts, 'S', 'Branco', 1, 'online', 33); sale(ts, 'M', 'Branco', 3, 'loja', 44); sale(ts, 'M', 'Branco', 2, 'online', 8); sale(ts, 'L', 'Branco', 2, 'online', 27);
+    sale(bn, 'Único', 'Preto', 4, 'online', 18); sale(bn, 'Único', 'Preto', 3, 'loja', 11); sale(bn, 'Único', 'Preto', 2, 'online', 3);
+    sale(bn, 'Único', 'Bege', 2, 'online', 14);
+    sale(cg, 'S', 'Preto', 1, 'online', 10); sale(cg, 'M', 'Preto', 3, 'online', 15); sale(cg, 'M', 'Preto', 1, 'loja', 5); sale(cg, 'L', 'Preto', 2, 'site', 12);
+    add('return', hd, 'L', 'Preto', 1, 8, { unitPrice: 65, note: 'Troca de tamanho' });
+    add('sample', cg, 'M', 'Preto', 1, 19, { note: 'Influencer' });
+    add('loss', ts, 'M', 'Branco', 1, 22, { note: 'Defeito de estampagem' });
+
+    const reservations = [
+      { id: 'r1', kind: 'preenc', customer: 'Pré-venda Drop 02 · Instagram', productId: hd.id, variantId: vid(hd, 'M', 'Preto'), qty: 6, unitPrice: 65, date: daysAgoISO(5), status: 'open', note: '' },
+      { id: 'r2', kind: 'revenda', customer: 'Parceiro Exemplo', productId: ts.id, variantId: vid(ts, 'L', 'Preto'), qty: 2, unitPrice: 21, date: daysAgoISO(3), status: 'open', note: 'Lote mínimo da 2.ª encomenda' },
+      { id: 'r3', kind: 'revenda', customer: 'Parceiro Exemplo', productId: cg.id, variantId: vid(cg, 'L', 'Preto'), qty: 3, unitPrice: 43, date: daysAgoISO(3), status: 'open', note: '' },
+      { id: 'r4', kind: 'preenc', customer: 'Cliente Instagram', productId: bn.id, variantId: vid(bn, 'Único', 'Bege'), qty: 2, unitPrice: 25, date: daysAgoISO(2), status: 'open', note: '' }
+    ];
+
+    return {
+      version: 2, products: [hd, ts, bn, cg], collections, movements, reservations,
+      fixedCosts: [
+        { id: 'f1', label: 'Estúdio / Armazém', value: 150, period: 'monthly' },
+        { id: 'f2', label: 'Marketing', value: 100, period: 'monthly' }
+      ],
+      lastPeriod: 'monthly', wholesaleShare: 20
+    };
+  }
+
+  /* ================= migração e validação ================= */
+  function normalizeState(raw) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.products)) return defaultState();
+    const st = {
+      version: 2, products: [],
+      collections: Array.isArray(raw.collections) ? raw.collections.filter(c => c && c.id) : [],
+      movements: Array.isArray(raw.movements) ? raw.movements.filter(m => m && m.id && MOVE_TYPES[m.type]) : [],
+      reservations: Array.isArray(raw.reservations) ? raw.reservations.filter(r => r && r.id) : [],
+      fixedCosts: Array.isArray(raw.fixedCosts) ? raw.fixedCosts.filter(f => f && f.id) : [],
+      lastPeriod: PERIODS[raw.lastPeriod] ? raw.lastPeriod : 'monthly',
+      wholesaleShare: isFinite(Number(raw.wholesaleShare)) ? Math.min(100, Math.max(0, Number(raw.wholesaleShare))) : 0
+    };
+    raw.products.forEach(p => {
+      if (!p || !p.id) return;
+      const costs = Array.isArray(p.costs) ? p.costs.map(c => ({ id: c.id || genId('c'), label: c.label || 'Custo', value: toNum(c.value) })) : [];
+      const cost = costs.reduce((s, c) => s + c.value, 0);
+      const q = {
+        id: p.id, name: p.name || 'Produto', sku: p.sku || '', collectionId: p.collectionId || '',
+        price: toNum(p.price), wsPrice: p.wsPrice != null ? toNum(p.wsPrice) : round2(cost * 1.23),
+        monthlySales: toNum(p.monthlySales), minStock: p.minStock != null ? toInt(p.minStock) : 2,
+        sizes: Array.isArray(p.sizes) ? p.sizes : [], colors: Array.isArray(p.colors) ? p.colors : [],
+        costs, variants: Array.isArray(p.variants) ? p.variants.filter(v => v && v.id) : []
+      };
+      if (!q.variants.length) {
+        q.variants = [{ id: genId('v'), size: 'Único', color: '' }];
+        q.sizes = ['Único']; q.colors = [];
+        const old = toInt(p.stock);
+        if (old > 0) st.movements.push({ id: genId('m'), type: 'adjust', productId: q.id, variantId: q.variants[0].id, qty: old, date: todayISO(), note: 'Stock inicial importado da versão anterior' });
+      }
+      st.products.push(q);
+    });
+    const vids = new Set();
+    st.products.forEach(p => p.variants.forEach(v => vids.add(v.id)));
+    st.movements = st.movements.filter(m => vids.has(m.variantId));
+    st.reservations = st.reservations.filter(r => vids.has(r.variantId));
+    return st;
+  }
+
+  /* ================= persistência ================= */
+  const cfg = (typeof NSH_CONFIG !== 'undefined' && NSH_CONFIG) || {};
+  const cloudOk = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
+  const mode = window.storage ? 'claude' : (cloudOk ? 'cloud' : 'local');
+  const LS_PERIOD = 'nsh_pref_period';
+  let session = null;
+  const clone = o => (o == null ? o : JSON.parse(JSON.stringify(o)));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  function stableStr(o) {
+    if (o === null || typeof o !== 'object') return JSON.stringify(o);
+    if (Array.isArray(o)) return '[' + o.map(stableStr).join(',') + ']';
+    return '{' + Object.keys(o).filter(k => o[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + stableStr(o[k])).join(',') + '}';
+  }
+  const parseTs = t => Date.parse(String(t || '').replace(/(\.\d{3})\d+/, '$1'));
+  const validDate = d => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? d : todayISO());
+
+  function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function lsDel(k) { try { window.localStorage.removeItem(k); } catch (e) {} }
+
+  /* ---- Supabase: sessão ---- */
+  const sbBase = () => String(cfg.SUPABASE_URL).replace(/\/+$/, '');
+  async function sbAuth(grant, body) {
+    const r = await fetch(sbBase() + '/auth/v1/token?grant_type=' + grant, {
+      method: 'POST', headers: { 'apikey': cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (!r.ok) { const e = new Error('auth ' + r.status); e.status = r.status; throw e; }
+    const j = await r.json();
+    session = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Math.floor(Date.now() / 1000) + (j.expires_in || 3600),
+      user_id: j.user && j.user.id, email: j.user && j.user.email };
+    lsSet(LS_SESSION, JSON.stringify(session));
+  }
+  async function sbToken(force) {
+    if (!session) return null;
+    if (force || session.expires_at - 60 < Date.now() / 1000) {
+      try { await sbAuth('refresh_token', { refresh_token: session.refresh_token }); }
+      catch (e) {
+        if (e && e.status >= 400 && e.status < 500) { session = null; lsDel(LS_SESSION); }
+        return null;
+      }
+    }
+    return session.access_token;
+  }
+  function authErr() { const e = new Error('auth'); e.auth = true; return e; }
+  async function rest(method, path, body, prefer) {
+    const call = tok => fetch(sbBase() + '/rest/v1/' + path, {
+      method,
+      headers: Object.assign({ 'apikey': cfg.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' }, prefer ? { 'Prefer': prefer } : {}),
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    let tok = await sbToken();
+    if (!tok) { if (!session) throw authErr(); throw new Error('offline'); }
+    let r = await call(tok);
+    if (r.status === 401) {
+      tok = await sbToken(true);
+      if (!tok) { if (!session) throw authErr(); throw new Error('offline'); }
+      r = await call(tok);
+      if (r.status === 401) { session = null; lsDel(LS_SESSION); throw authErr(); }
+    }
+    if (!r.ok) { const e = new Error('rest ' + r.status); e.status = r.status; try { e.body = await r.text(); } catch (x) {} throw e; }
+    const t = await r.text();
+    return t ? JSON.parse(t) : null;
+  }
+
+  /* ---- Supabase: dados ----
+     nsh_catalog       1 linha (produtos, coleções, custos fixos), com número de versão
+     nsh_movements     1 linha por movimento (nunca se apaga: "deleted" = true)
+     nsh_reservations  1 linha por reserva */
+  const MOVE_COLS = 'id,data,deleted,updated_at';
+  const RES_COLS = 'id,data,status,deleted,updated_at';
+  const cloud = { catalog: null, catVersion: 0, moves: new Map(), res: new Map(), movesTs: null, resTs: null, timer: null, inflight: null, lastSync: null };
+  const emptyCatalog = () => ({ version: 2, products: [], collections: [], fixedCosts: [], wholesaleShare: 0 });
+  function catalogFrom(st) { return { version: 2, products: clone(st.products), collections: clone(st.collections), fixedCosts: clone(st.fixedCosts), wholesaleShare: st.wholesaleShare }; }
+  function fixCatalog(c) {
+    const d = (c && typeof c === 'object') ? c : emptyCatalog();
+    ['products', 'collections', 'fixedCosts'].forEach(k => { if (!Array.isArray(d[k])) d[k] = []; });
+    return d;
+  }
+  function rebuildFromCloud() {
+    state = normalizeState(Object.assign({}, clone(fixCatalog(cloud.catalog)), {
+      movements: Array.from(cloud.moves.values()), reservations: Array.from(cloud.res.values()), lastPeriod: lsGet(LS_PERIOD) || 'monthly'
+    }));
+  }
+  async function pullCatalog(force) {
+    const rows = await rest('GET', 'nsh_catalog?id=eq.main&select=version' + (force ? ',data' : ''));
+    if (!rows || !rows.length) {
+      const seed = catalogFrom(defaultState());
+      try { await rest('POST', 'nsh_catalog', { id: 'main', data: seed, version: 1 }, 'return=minimal'); }
+      catch (e) { if (e.status === 409) return pullCatalog(true); throw e; }
+      cloud.catalog = seed; cloud.catVersion = 1; return true;
+    }
+    if (!force) { if (rows[0].version === cloud.catVersion && cloud.catalog) return false; return pullCatalog(true); }
+    cloud.catalog = fixCatalog(rows[0].data); cloud.catVersion = rows[0].version; return true;
+  }
+  async function pullTable(table, cols, sinceTs, map) {
+    let offset = 0, maxTs = sinceTs, changed = false;
+    for (;;) {
+      let q = table + '?select=' + cols + '&order=updated_at.asc,id.asc&limit=1000&offset=' + offset;
+      if (sinceTs) q += '&updated_at=gte.' + encodeURIComponent(new Date(parseTs(sinceTs) - 60000).toISOString());
+      else q += '&deleted=is.false';
+      const rows = (await rest('GET', q)) || [];
+      rows.forEach(row => {
+        if (!maxTs || parseTs(row.updated_at) > parseTs(maxTs)) maxTs = row.updated_at;
+        if (row.deleted) { if (map.delete(row.id)) changed = true; return; }
+        const d = Object.assign({}, row.data || {}, { id: row.id });
+        if (row.status) d.status = row.status;
+        const old = map.get(row.id);
+        if (!old || stableStr(old) !== stableStr(d)) { map.set(row.id, d); changed = true; }
+      });
+      if (rows.length < 1000) break;
+      offset += 1000;
+    }
+    return { maxTs, changed };
+  }
+  function syncNow(full) {
+    if (cloud.inflight) return cloud.inflight;
+    cloud.inflight = (async () => {
+      try {
+        if (full) { cloud.moves = new Map(); cloud.res = new Map(); cloud.movesTs = null; cloud.resTs = null; }
+        const c = await pullCatalog(!!full);
+        const a = await pullTable('nsh_movements', MOVE_COLS, cloud.movesTs, cloud.moves);
+        const b = await pullTable('nsh_reservations', RES_COLS, cloud.resTs, cloud.res);
+        cloud.movesTs = a.maxTs; cloud.resTs = b.maxTs; cloud.lastSync = new Date();
+        if (full || c || a.changed || b.changed) { rebuildFromCloud(); return true; }
+        return false;
+      } finally { cloud.inflight = null; }
+    })();
+    return cloud.inflight;
+  }
+  async function catalogMutate(fn) {
+    for (let i = 0; i < 6; i++) {
+      const rows = await rest('GET', 'nsh_catalog?id=eq.main&select=data,version');
+      if (!rows || !rows.length) {
+        const data = emptyCatalog(); fn(data);
+        try { await rest('POST', 'nsh_catalog', { id: 'main', data, version: 1 }, 'return=minimal'); cloud.catalog = data; cloud.catVersion = 1; return; }
+        catch (e) { if (e.status === 409) continue; throw e; }
+      }
+      const cur = rows[0], data = fixCatalog(clone(cur.data));
+      fn(data);
+      const out = await rest('PATCH', 'nsh_catalog?id=eq.main&version=eq.' + cur.version, { data, version: cur.version + 1 }, 'return=representation');
+      if (Array.isArray(out) && out.length) { cloud.catalog = data; cloud.catVersion = cur.version + 1; return; }
+      await sleep(150 + Math.random() * 300);
+    }
+    throw new Error('catalog conflict');
+  }
+  async function upsertRows(table, rows) {
+    for (let i = 0; i < rows.length; i += 500) {
+      await rest('POST', table + '?on_conflict=id', rows.slice(i, i + 500), 'resolution=merge-duplicates,return=minimal');
+    }
+  }
+  const moveRow = m => ({ id: m.id, move_date: validDate(m.date), product_id: m.productId, variant_id: m.variantId, data: m, deleted: false });
+  const resRow = r => ({ id: r.id, status: r.status || 'open', product_id: r.productId, data: r, deleted: false });
+  const idList = ids => '(' + ids.map(encodeURIComponent).join(',') + ')';
+
+  /* ---- alterações: aplicadas logo no ecrã e depois gravadas ----
+     spec = { catalog: fn(catálogo), moves: {add, removeIds, removeProduct}, res: {add, update:[{id, patch}], removeProduct} } */
+  function applyPatch(o, patch) { Object.keys(patch).forEach(k => { if (patch[k] === null) delete o[k]; else o[k] = patch[k]; }); }
+  function applySpecLocal(spec) {
+    if (spec.catalog) spec.catalog(state);
+    const mvS = spec.moves || {}, rvS = spec.res || {};
+    if (mvS.add) mvS.add.forEach(m => state.movements.push(m));
+    if (mvS.removeIds) state.movements = state.movements.filter(m => mvS.removeIds.indexOf(m.id) === -1);
+    if (mvS.removeProduct) state.movements = state.movements.filter(m => m.productId !== mvS.removeProduct);
+    if (rvS.add) rvS.add.forEach(r => state.reservations.push(r));
+    if (rvS.update) rvS.update.forEach(u => { const r = state.reservations.find(x => x.id === u.id); if (r) applyPatch(r, u.patch); });
+    if (rvS.removeProduct) state.reservations = state.reservations.filter(r => r.productId !== rvS.removeProduct);
+  }
+  function applySpecCloud(spec) {
+    if (spec.catalog) { cloud.catalog = fixCatalog(clone(cloud.catalog)); spec.catalog(cloud.catalog); }
+    const mvS = spec.moves || {}, rvS = spec.res || {};
+    if (mvS.add) mvS.add.forEach(m => cloud.moves.set(m.id, m));
+    if (mvS.removeIds) mvS.removeIds.forEach(id => cloud.moves.delete(id));
+    if (mvS.removeProduct) Array.from(cloud.moves.values()).forEach(m => { if (m.productId === mvS.removeProduct) cloud.moves.delete(m.id); });
+    if (rvS.add) rvS.add.forEach(r => cloud.res.set(r.id, r));
+    if (rvS.update) rvS.update.forEach(u => { const r = cloud.res.get(u.id); if (r) { const n = Object.assign({}, r); applyPatch(n, u.patch); cloud.res.set(u.id, n); } });
+    if (rvS.removeProduct) Array.from(cloud.res.values()).forEach(r => { if (r.productId === rvS.removeProduct) cloud.res.delete(r.id); });
+    rebuildFromCloud();
+  }
+  async function remoteSpec(spec) {
+    const mvS = spec.moves || {}, rvS = spec.res || {};
+    if (mvS.add && mvS.add.length) await upsertRows('nsh_movements', mvS.add.map(moveRow));
+    if (mvS.removeIds && mvS.removeIds.length) await rest('PATCH', 'nsh_movements?id=in.' + idList(mvS.removeIds), { deleted: true }, 'return=minimal');
+    if (mvS.removeProduct) await rest('PATCH', 'nsh_movements?product_id=eq.' + encodeURIComponent(mvS.removeProduct), { deleted: true }, 'return=minimal');
+    if (rvS.add && rvS.add.length) await upsertRows('nsh_reservations', rvS.add.map(resRow));
+    if (rvS.update) for (const u of rvS.update) { const r = cloud.res.get(u.id); if (r) await rest('PATCH', 'nsh_reservations?id=eq.' + encodeURIComponent(u.id), { status: r.status || 'open', data: r }, 'return=minimal'); }
+    if (rvS.removeProduct) await rest('PATCH', 'nsh_reservations?product_id=eq.' + encodeURIComponent(rvS.removeProduct), { deleted: true }, 'return=minimal');
+    if (spec.catalog) await catalogMutate(spec.catalog);
+  }
+  async function commit(spec) {
+    if (mode !== 'cloud') { applySpecLocal(spec); await saveState(); return true; }
+    const snap = { catalog: clone(cloud.catalog), moves: new Map(cloud.moves), res: new Map(cloud.res) };
+    applySpecCloud(spec);
+    try {
+      await remoteSpec(spec);
+      rebuildFromCloud(); setChip(null); scheduleRender();
+      return true;
+    } catch (e) {
+      cloud.catalog = snap.catalog; cloud.moves = snap.moves; cloud.res = snap.res; rebuildFromCloud();
+      if (e && e.auth) { onSessionLost(); return false; }
+      render(); setChip('Erro ao guardar');
+      showToast('Sem ligação ao servidor: a alteração não foi guardada. Tenta de novo.', 'warn');
+      syncNow().then(ch => { if (ch) scheduleRender(); }).catch(() => {});
+      return false;
+    }
+  }
+  async function replaceAllCloud(newState) {
+    await rest('PATCH', 'nsh_movements?deleted=is.false', { deleted: true }, 'return=minimal');
+    await rest('PATCH', 'nsh_reservations?deleted=is.false', { deleted: true }, 'return=minimal');
+    await upsertRows('nsh_movements', newState.movements.map(moveRow));
+    await upsertRows('nsh_reservations', newState.reservations.map(resRow));
+    const cat = catalogFrom(newState);
+    await catalogMutate(c => { Object.keys(c).forEach(k => delete c[k]); Object.assign(c, clone(cat)); });
+    await syncNow(true);
+  }
+  async function freshForCheck() {
+    if (mode !== 'cloud') return;
+    try { if (await syncNow()) scheduleRender(); } catch (e) { if (e && e.auth) { onSessionLost(); throw e; } }
+  }
+
+  /* ---- sincronização automática ---- */
+  function startPolling() {
+    stopPolling();
+    cloud.timer = setInterval(() => { if (!document.hidden) bgSync(); }, 20000);
+  }
+  function stopPolling() { if (cloud.timer) clearInterval(cloud.timer); cloud.timer = null; }
+  async function bgSync() {
+    if (mode !== 'cloud' || !session || !cloud.catalog) return;
+    try { const ch = await syncNow(); setChip(null); if (ch) scheduleRender(); }
+    catch (e) { if (e && e.auth) onSessionLost(); else setChip('Sem ligação'); }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) bgSync(); });
+  window.addEventListener('online', () => bgSync());
+  let renderPending = false;
+  const typing = () => { const a = document.activeElement, c = byId('app-content'); return !!(a && c && c.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
+  function scheduleRender() { if (typing()) { renderPending = true; return; } renderPending = false; render(); }
+  function onSessionLost() {
+    stopPolling(); session = null; lsDel(LS_SESSION);
+    cloud.catalog = null; cloud.moves = new Map(); cloud.res = new Map(); cloud.catVersion = 0; cloud.movesTs = null; cloud.resTs = null;
+    state = defaultState(); closeModal(); render();
+    showToast('A sessão terminou. Entra de novo.', 'warn');
+  }
+  async function cloudStart() {
+    byId('app-content').innerHTML = '<div class="loading-state">A carregar os dados da NSH...</div>';
+    try { await syncNow(true); setChip(null); }
+    catch (e) {
+      if (e && e.auth) { onSessionLost(); return; }
+      setChip('Sem ligação'); render(); return;
+    }
+    sim.period = lsGet(LS_PERIOD) || 'monthly';
+    startPolling(); render();
+  }
+
+  /* ---- modos sem nuvem (este dispositivo / memória da app) ---- */
+  async function loadState() {
+    try {
+      let raw = null;
+      if (mode === 'claude') { const res = await window.storage.get(LS_KEY, false); raw = res && res.value; }
+      else raw = lsGet(LS_KEY);
+      state = raw ? normalizeState(JSON.parse(raw)) : defaultState();
+    } catch (e) { state = defaultState(); }
+  }
+  async function saveState() {
+    if (mode === 'cloud') return;
+    try {
+      if (mode === 'claude') { const res = await window.storage.set(LS_KEY, JSON.stringify(state), false); if (!res) throw new Error('empty'); }
+      else if (!lsSet(LS_KEY, JSON.stringify(state))) throw new Error('ls');
+      setChip(null);
+    } catch (e) {
+      setChip('Erro ao guardar');
+      showToast('Não foi possível guardar as alterações.', 'warn');
+    }
+  }
+  function setChip(text) {
+    const chip = byId('mode-chip');
+    if (chip) chip.hidden = !text;
+    if (text) setText('mode-text', text);
+  }
+  const needsLogin = () => mode === 'cloud' && !session;
+  const cloudDown = () => mode === 'cloud' && !!session && !cloud.catalog;
+
+  /* ================= cálculos ================= */
+  const findProduct = id => state.products.find(p => p.id === id) || null;
+  const findCollection = id => state.collections.find(c => c.id === id) || null;
+  const activeVariants = p => p.variants.filter(v => !v.archived);
+  const findVariant = (p, id) => (p ? p.variants.find(v => v.id === id) : null) || null;
+  function variantLabel(v) {
+    if (!v) return '—';
+    const parts = [];
+    if (v.size && v.size !== 'Único') parts.push(v.size);
+    if (v.color) parts.push(v.color);
+    return parts.length ? parts.join(' · ') : 'Único';
+  }
+  const unitCost = p => (p.costs || []).reduce((s, c) => s + toNum(c.value), 0);
+  const wsOf = p => toNum(p.wsPrice) > 0 ? toNum(p.wsPrice) : toNum(p.price);
+  const priceFor = (p, ch) => (ch === 'revenda' ? wsOf(p) : toNum(p.price));
+  const marginAt = (price, cost) => (price > 0 ? ((price - cost) / price) * 100 : 0);
+  const marginPct = p => marginAt(toNum(p.price), unitCost(p));
+  const wsMarginPct = p => marginAt(wsOf(p), unitCost(p));
+  const markupAt = (price, cost) => (cost > 0 ? ((price - cost) / cost) * 100 : 0);
+  const markupPct = p => markupAt(toNum(p.price), unitCost(p));
+  const shareFrac = () => Math.min(100, Math.max(0, toNum(state.wholesaleShare))) / 100;
+  const blendedPrice = p => { const s = shareFrac(); return s * wsOf(p) + (1 - s) * toNum(p.price); };
+  const signedQty = m => (m.type === 'adjust' ? (Number(m.qty) || 0) : MOVE_TYPES[m.type].sign * toInt(m.qty));
+
+  function computeStock() {
+    const v = {};
+    state.products.forEach(p => p.variants.forEach(x => { v[x.id] = { phys: 0, res: 0, avail: 0 }; }));
+    state.movements.forEach(m => { if (v[m.variantId]) v[m.variantId].phys += signedQty(m); });
+    state.reservations.forEach(r => { if (r.status === 'open' && v[r.variantId]) v[r.variantId].res += toInt(r.qty); });
+    Object.keys(v).forEach(k => { v[k].avail = v[k].phys - v[k].res; });
+    return v;
+  }
+  const blank = { phys: 0, res: 0, avail: 0 };
+  function productStock(p, S) {
+    return p.variants.reduce((a, x) => { const s = S[x.id] || blank; a.phys += s.phys; a.res += s.res; a.avail += s.avail; return a; }, { phys: 0, res: 0, avail: 0 });
+  }
+  function variantStatus(p, s) {
+    if (s.avail < 0) return 'short';
+    if (s.avail === 0) return 'out';
+    if (s.avail <= toInt(p.minStock)) return 'low';
+    return 'ok';
+  }
+  const visibleVariants = (p, S) => p.variants.filter(v => !v.archived || (S[v.id] && (S[v.id].phys !== 0 || S[v.id].res !== 0)));
+
+  function salesSince(days) {
+    const from = daysAgoISO(days); let rev = 0, units = 0, cogs = 0; const byCh = {};
+    state.movements.forEach(m => {
+      if (m.date < from || (m.type !== 'sale' && m.type !== 'return')) return;
+      const p = findProduct(m.productId); const q = toInt(m.qty); const sg = m.type === 'sale' ? 1 : -1;
+      const val = q * toNum(m.unitPrice);
+      rev += sg * val; units += sg * q; cogs += sg * q * (p ? unitCost(p) : 0);
+      if (m.type === 'sale') { const ch = m.channel || 'loja'; byCh[ch] = (byCh[ch] || 0) + val; }
+    });
+    return { rev, units, cogs, gross: rev - cogs, byCh };
+  }
+  function flowFor(pids) {
+    let recv = 0, sold = 0, invested = 0, recovered = 0;
+    state.movements.forEach(m => {
+      if (!pids.has(m.productId)) return;
+      const q = toInt(m.qty);
+      if (m.type === 'in') { recv += q; invested += q * toNum(m.unitCost); }
+      else if (m.type === 'sale') { sold += q; recovered += q * toNum(m.unitPrice); }
+      else if (m.type === 'return') { sold -= q; recovered -= q * toNum(m.unitPrice); }
+    });
+    return { recv, sold, invested, recovered, result: recovered - invested, st: recv > 0 ? (sold / recv) * 100 : 0 };
+  }
+
+  function fixedCostMonthly(fc) {
+    const v = toNum(fc.value);
+    if (fc.period === 'weekly') return v * (30 / 7);
+    if (fc.period === 'annual') return v / 12;
+    return v;
+  }
+  const totalFixedMonthly = () => state.fixedCosts.reduce((s, fc) => s + fixedCostMonthly(fc), 0);
+  const periodLabelPt = p => (p === 'weekly' ? 'semana' : p === 'annual' ? 'ano' : 'mês');
+
+  function estimateMonthly() {
+    let rev = 0, cost = 0, units = 0; const rows = [];
+    state.products.forEach(p => {
+      const u = toNum(p.monthlySales); const r = u * blendedPrice(p), c = u * unitCost(p);
+      rev += r; cost += c; units += u; rows.push({ p, profit: r - c });
+    });
+    const fixed = totalFixedMonthly(), gross = rev - cost, net = gross - fixed;
+    const breakEven = units > 0 && gross > 0 && fixed > 0 ? fixed / (gross / units) : null;
+    return { rev, cost, units, fixed, gross, net, netPct: rev > 0 ? (net / rev) * 100 : 0, rows, breakEven };
+  }
+  function periodFactor() {
+    if (sim.period === 'custom') return Math.max(1, toNum(sim.customDays)) / 30;
+    return PERIODS[sim.period].factor;
+  }
+  function simulate() {
+    const f = periodFactor(); let totalRevenue = 0, totalCost = 0;
+    const rows = state.products.map(p => {
+      const units = Object.prototype.hasOwnProperty.call(sim.overrides, p.id) ? toNum(sim.overrides[p.id]) : toNum(p.monthlySales) * f;
+      const revenue = units * blendedPrice(p), cost = units * unitCost(p);
+      totalRevenue += revenue; totalCost += cost;
+      return { p, units, revenue, cost, profit: revenue - cost };
+    });
+    const grossProfit = totalRevenue - totalCost, fixedTotal = totalFixedMonthly() * f, netProfit = grossProfit - fixedTotal;
+    return { rows, totalRevenue, totalCost, grossProfit, fixedTotal, netProfit,
+      grossMarginPct: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+      netMarginPct: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0 };
+  }
+  function barRow(label, value, max, cls) {
+    const w = Math.min(100, (Math.abs(value) / (max || 1)) * 100);
+    return '<div class="bar-row"><span class="bar-label">' + esc(label) + '</span><div class="bar-track"><div class="bar-fill ' + cls + '" style="width:' + w.toFixed(1) + '%"></div></div><span class="bar-value">' + fmtUSD(value) + '</span></div>';
+  }
+
+  /* ================= ecrã: Painel ================= */
+  function renderDashboard() {
+    const S = computeStock(), E = estimateMonthly(), R = salesSince(30);
+    let phys = 0, res = 0, stockCost = 0, stockSale = 0, outN = 0, lowN = 0, shortUnits = 0; const outNames = [];
+    state.products.forEach(p => p.variants.forEach(v => {
+      const s = S[v.id]; const ph = Math.max(0, s.phys);
+      phys += ph; res += s.res; stockCost += ph * unitCost(p); stockSale += ph * toNum(p.price);
+      if (s.avail < 0) shortUnits += -s.avail;
+      if (v.archived && s.phys === 0 && s.res === 0) return;
+      const st = variantStatus(p, s);
+      if (st === 'out' || st === 'short') { outN++; if (outNames.length < 3) outNames.push(p.name + ' ' + variantLabel(v)); }
+      else if (st === 'low') lowN++;
+    }));
+    const avail = phys - res;
+    const n = state.products.length;
+    const avgMargin = n ? state.products.reduce((s, p) => s + marginPct(p), 0) / n : 0;
+    const avgMarkup = n ? state.products.reduce((s, p) => s + markupPct(p), 0) / n : 0;
+
+    const gp = Math.max(0, Math.min(100, E.netPct)), glen = 251.3;
+    const gauge = '<div class="card">' + cardTitle('Margem líquida estimada') +
+      '<div class="gauge"><svg viewBox="0 0 200 108" aria-hidden="true"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#2A2A2D" stroke-width="14" stroke-linecap="round"/>' +
+      '<path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="' + (E.net < 0 ? '#F87171' : '#EE6331') + '" stroke-width="14" stroke-linecap="round" stroke-dasharray="' + (glen * gp / 100).toFixed(1) + ' ' + glen + '"/></svg>' +
+      '<div class="gauge-val"><strong class="num">' + fmtPct(E.netPct) + '</strong><span>de lucro sobre vendas</span></div></div>' +
+      '<div class="gauge-scale"><span>0%</span><span>100%</span></div></div>';
+
+    let tags = '';
+    if (outN) tags += '<span class="tag tag-bad">' + plural(outN, 'variante sem stock', 'variantes sem stock') + '</span>';
+    if (lowN) tags += '<span class="tag tag-warn">' + plural(lowN, 'variante com stock baixo', 'variantes com stock baixo') + '</span>';
+    if (!outN && !lowN) tags = '<span class="tag tag-good">Sem alertas de stock</span>';
+    const stockCard = '<div class="card">' + cardTitle('Stock agora') +
+      '<div class="trio"><div><span>Físico</span><strong>' + phys + '</strong></div><div><span>Reservado</span><strong>' + res + '</strong></div>' +
+      '<div><span>Disponível</span><strong class="' + (avail < 0 ? 'warn-text' : '') + '">' + avail + '</strong></div></div>' +
+      '<div class="tags">' + tags + '</div>' +
+      '<button class="btn-secondary wide-btn" data-action="goto" data-tab="stock">Ver stock por variante</button></div>';
+
+    let salesCard = '<div class="card">' + cardTitle('Vendas registadas · 30 dias');
+    if (!R.units && !R.rev) {
+      salesCard += '<p class="tab-sub">Ainda não há vendas registadas nos últimos 30 dias. Regista-as no separador Stock.</p></div>';
+    } else {
+      const chMax = Math.max(1, ...Object.keys(R.byCh).map(k => R.byCh[k]));
+      const chBars = Object.keys(CHANNELS).filter(k => R.byCh[k]).sort((a, b) => R.byCh[b] - R.byCh[a]).map(k => barRow(CHANNELS[k], R.byCh[k], chMax, 'profit')).join('');
+      salesCard += '<div class="trio money"><div><span>Receita</span><strong>' + fmtUSD(R.rev) + '</strong></div><div><span>Peças</span><strong>' + R.units + '</strong></div>' +
+        '<div><span>Lucro bruto</span><strong class="' + (R.gross < 0 ? 'warn-text' : 'good-text') + '">' + fmtUSD(R.gross) + '</strong></div></div>' +
+        (chBars ? '<div class="section-label" style="margin:18px 0 12px">Vendas por canal</div><div class="bars">' + chBars + '</div>' : '') + '</div>';
+    }
+
+    const rows = E.rows.slice().sort((a, b) => b.profit - a.profit);
+    const maxP = Math.max(1, ...rows.map(x => Math.abs(x.profit)));
+    const profitBars = rows.map(x => barRow(x.p.name, x.profit, maxP, x.profit < 0 ? 'loss' : 'profit')).join('');
+
+    const ins = [];
+    if (rows.length && E.gross > 0 && rows[0].profit > 0) ins.push(['', '<b>' + esc(rows[0].p.name) + '</b> gera ' + fmtPct((rows[0].profit / E.gross) * 100) + ' do lucro bruto mensal estimado.']);
+    if (shortUnits > 0) ins.push(['bad', 'Tens <b>' + plural(shortUnits, 'peça reservada', 'peças reservadas') + ' sem stock</b>: precisam de ser produzidas ou repostas.']);
+    if (outNames.length) ins.push(['bad', 'Sem stock disponível: <b>' + outNames.map(esc).join(', ') + '</b>' + (outN > outNames.length ? ' e mais ' + (outN - outNames.length) : '') + '.']);
+    let worstWs = null;
+    state.products.forEach(p => { if (toNum(p.wsPrice) > 0 && (!worstWs || wsMarginPct(p) < wsMarginPct(worstWs))) worstWs = p; });
+    if (worstWs && wsMarginPct(worstWs) < 15) ins.push(['warn', 'A margem de revenda de <b>' + esc(worstWs.name) + '</b> é de ' + fmtPct(wsMarginPct(worstWs)) + '. Confirma o preço de revenda.']);
+    let worst = null;
+    state.products.forEach(p => { if (!worst || marginPct(p) < marginPct(worst)) worst = p; });
+    if (worst && n > 1) { const wm = marginPct(worst); ins.push([wm < 0 ? 'bad' : (wm < 30 ? 'warn' : ''), 'Menor margem na loja: <b>' + esc(worst.name) + '</b> com ' + fmtPct(wm) + (wm < 30 ? '. Vale a pena rever o preço ou os custos.' : '.')]); }
+    if (E.breakEven !== null) ins.push([E.units >= E.breakEven ? '' : 'bad', 'Para cobrir os custos fixos precisas de cerca de <b>' + plural(Math.ceil(E.breakEven), 'peça', 'peças') + '/mês</b>; a tua estimativa atual é de ' + Math.round(E.units) + '.']);
+    const insights = ins.length ? '<div class="card">' + cardTitle('Análise automática') + ins.slice(0, 5).map(i => '<div class="insight ' + i[0] + '"><i></i><div>' + i[1] + '</div></div>').join('') + '</div>' : '';
+
+    return '<div class="stack">' +
+      '<div class="card hero"><div class="hero-main"><span class="hero-brand">NO SAFETY HOOD · USD</span>' +
+        '<div class="hero-label">Lucro líquido estimado por mês</div>' +
+        '<div class="hero-big ' + (E.net < 0 ? 'warn-text' : '') + '">' + fmtUSD(E.net) + '</div>' +
+        '<span class="pill-badge ' + (E.net < 0 ? 'neg' : '') + '">' + fmtPct(E.netPct) + ' de margem líquida</span></div>' +
+        '<div class="hero-split"><div><span>Receita</span><strong>' + fmtUSD(E.rev) + '</strong></div><div><span>Custos</span><strong>' + fmtUSD(E.cost) + '</strong></div><div><span>Fixos</span><strong>' + fmtUSD(E.fixed) + '</strong></div></div></div>' +
+      stockCard + salesCard + gauge +
+      '<div class="stat-grid">' +
+        '<div class="card stat-card"><span>Stock (custo)</span><strong>' + fmtUSD(stockCost) + '</strong></div>' +
+        '<div class="card stat-card"><span>Potencial de venda</span><strong class="good-text">' + fmtUSD(stockSale) + '</strong></div>' +
+        '<div class="card stat-card"><span>Markup médio (loja)</span><strong>' + fmtPct(avgMarkup) + '</strong></div>' +
+        '<div class="card stat-card"><span>Margem média (loja)</span><strong>' + fmtPct(avgMargin) + '</strong></div>' +
+      '</div>' +
+      (profitBars ? '<div class="card">' + cardTitle('Lucro estimado por produto · mês') + '<div class="bars">' + profitBars + '</div></div>' : '') +
+      insights + '</div>' +
+      '<p class="hint">As estimativas usam as vendas mensais de cada produto e o peso da revenda definido na Simulação (' + fmtPct(shareFrac() * 100) + ').</p>';
+  }
+
+  /* ================= ecrã: Produtos ================= */
+  function renderProducts() {
+    const S = computeStock();
+    const cards = state.products.map(p => {
+      const cost = unitCost(p), m = marginPct(p), tot = productStock(p, S);
+      let out = 0, low = 0;
+      visibleVariants(p, S).forEach(v => { const st = variantStatus(p, S[v.id]); if (st === 'out' || st === 'short') out++; else if (st === 'low') low++; });
+      const col = findCollection(p.collectionId);
+      const health = toNum(p.price) - cost < 0 ? 'h-bad' : (m < 20 ? 'h-warn' : 'h-good');
+      let tags = '';
+      if (col) tags += '<span class="tag tag-brand">' + esc(col.name) + '</span>';
+      if (out) tags += '<span class="tag tag-bad">' + plural(out, 'variante sem stock', 'variantes sem stock') + '</span>';
+      if (low) tags += '<span class="tag tag-warn">' + plural(low, 'variante com stock baixo', 'variantes com stock baixo') + '</span>';
+      return '<button type="button" class="card product-card ' + health + '" data-action="edit-product" data-id="' + p.id + '">' +
+        '<div class="pc-top"><div><div class="product-name">' + esc(p.name) + '</div>' + (p.sku ? '<div class="product-sku">' + esc(p.sku) + '</div>' : '') + '</div>' +
+        '<div class="pc-price"><strong>' + fmtUSD(toNum(p.price)) + '</strong><span>Revenda ' + (toNum(p.wsPrice) > 0 ? fmtUSD(toNum(p.wsPrice)) : '—') + '</span></div></div>' +
+        '<div class="mini-row"><div class="mini-stat"><span>Custo</span><strong>' + fmtUSD(cost) + '</strong></div>' +
+        '<div class="mini-stat"><span>Margem</span><strong>' + fmtPct(m) + '</strong></div>' +
+        '<div class="mini-stat"><span>Revenda</span><strong>' + (toNum(p.wsPrice) > 0 ? fmtPct(wsMarginPct(p)) : '—') + '</strong></div>' +
+        '<div class="mini-stat"><span>Disponível</span><strong class="' + (tot.avail < 0 ? 'warn-text' : '') + '">' + tot.avail + '</strong></div></div>' +
+        (tags ? '<div class="tags">' + tags + '</div>' : '') + '</button>';
+    }).join('');
+    return '<div class="intro"><p class="tab-sub">' + plural(state.products.length, 'produto', 'produtos') + '. Toca num produto para editar preços, variantes e custos.</p></div>' +
+      '<div class="stack">' + (cards || emptyState('Ainda não tens produtos. Adiciona o primeiro.')) + '</div>' +
+      '<button class="btn-add" data-action="add-product">+ Adicionar produto</button>';
+  }
+
+  /* ================= ecrã: Stock ================= */
+  function renderStock() {
+    const S = computeStock();
+    const openRes = state.reservations.filter(r => r.status === 'open').length;
+    const seg = '<div class="seg">' +
+      '<button class="seg-btn ' + (stockView === 'stock' ? 'on' : '') + '" data-action="stock-view" data-view="stock">Stock</button>' +
+      '<button class="seg-btn ' + (stockView === 'moves' ? 'on' : '') + '" data-action="stock-view" data-view="moves">Movimentos</button>' +
+      '<button class="seg-btn ' + (stockView === 'res' ? 'on' : '') + '" data-action="stock-view" data-view="res">Reservas' + (openRes ? '<span class="seg-badge">' + openRes + '</span>' : '') + '</button></div>';
+    const actions = '<div class="btn-row" style="margin:0 0 16px"><button class="btn-primary" data-action="new-move">Registar movimento</button><button class="btn-secondary" data-action="new-res">Nova reserva</button></div>';
+    if (!state.products.length) return seg + emptyState('Adiciona primeiro um produto no separador Produtos.');
+    let body = '';
+    if (stockView === 'moves') body = renderMoves();
+    else if (stockView === 'res') body = renderReservations(S);
+    else body = renderStockGrid(S);
+    return seg + actions + body;
+  }
+
+  function renderStockGrid(S) {
+    const pills = '<div class="pill-row"><button class="pill ' + (stockFilter === 'all' ? 'on' : '') + '" data-action="stock-filter" data-f="all">Todas as variantes</button>' +
+      '<button class="pill ' + (stockFilter === 'alerts' ? 'on' : '') + '" data-action="stock-filter" data-f="alerts">Só alertas</button></div>';
+    const cards = state.products.map(p => {
+      let vs = visibleVariants(p, S);
+      if (stockFilter === 'alerts') vs = vs.filter(v => variantStatus(p, S[v.id]) !== 'ok');
+      if (!vs.length) return '';
+      const tot = productStock(p, S);
+      const rowsHtml = vs.map(v => {
+        const s = S[v.id] || blank, st = variantStatus(p, s);
+        const label = variantLabel(v) + (v.archived ? ' (arquivada)' : '');
+        return '<button class="vgrid vrow st-' + st + '" data-action="move-variant" data-pid="' + p.id + '" data-vid="' + v.id + '">' +
+          '<span class="vname"><i></i><em>' + esc(label) + '</em></span><span>' + s.phys + '</span><span class="vres">' + (s.res || '—') + '</span><span class="vav">' + fmtSigned(s.avail).replace('+', '') + '</span></button>';
+      }).join('');
+      return '<div class="card"><div class="stock-head"><div><div class="product-name">' + esc(p.name) + '</div>' + (p.sku ? '<div class="product-sku">' + esc(p.sku) + '</div>' : '') + '</div>' +
+        '<div class="stock-tot"><strong class="' + (tot.avail < 0 ? 'warn-text' : '') + '">' + tot.avail + '</strong><span>disponíveis</span></div></div>' +
+        '<div class="vgrid vgrid-head"><span>Variante</span><span>Físico</span><span>Res.</span><span>Disp.</span></div>' + rowsHtml + '</div>';
+    }).join('');
+    return pills + '<div class="stack">' + (cards || emptyState('Nenhuma variante com alertas. Está tudo com stock suficiente.')) + '</div>' +
+      '<p class="hint">Disponível = físico − reservado. Toca numa variante para registar um movimento. O alerta de stock baixo define-se em cada produto.</p>';
+  }
+
+  function renderMoves() {
+    const groups = { all: null, in: ['in'], sale: ['sale'], return: ['return'], other: ['sample', 'loss', 'adjust'] };
+    const labels = { all: 'Todos', in: 'Entradas', sale: 'Vendas', return: 'Devoluções', other: 'Outros' };
+    const pills = '<div class="pill-row">' + Object.keys(groups).map(k => '<button class="pill ' + (moveFilter === k ? 'on' : '') + '" data-action="move-filter" data-f="' + k + '">' + labels[k] + '</button>').join('') + '</div>';
+    const g = groups[moveFilter];
+    const list = state.movements.map((m, i) => ({ m, i })).filter(x => !g || g.indexOf(x.m.type) > -1)
+      .sort((a, b) => (a.m.date < b.m.date ? 1 : a.m.date > b.m.date ? -1 : b.i - a.i));
+    if (!list.length) return pills + emptyState('Ainda não há movimentos deste tipo.');
+    const rows = list.slice(0, moveLimit).map(x => {
+      const m = x.m, p = findProduct(m.productId), v = findVariant(p, m.variantId), q = signedQty(m);
+      let sub = MOVE_TYPES[m.type].label;
+      if (m.type === 'sale' && m.channel) sub += ' · ' + (CHANNELS[m.channel] || m.channel);
+      sub += ' · ' + fmtDate(m.date);
+      if (m.note) sub += ' · ' + m.note;
+      let val = '';
+      if (m.type === 'sale') val = fmtUSD(toInt(m.qty) * toNum(m.unitPrice));
+      else if (m.type === 'return' && toNum(m.unitPrice) > 0) val = fmtUSD(-toInt(m.qty) * toNum(m.unitPrice));
+      else if (m.type === 'in' && toNum(m.unitCost) > 0) val = 'custo ' + fmtUSD(toInt(m.qty) * toNum(m.unitCost));
+      return '<button class="move-row" data-action="del-move" data-id="' + m.id + '"><div class="move-main"><div class="move-title">' + esc((p ? p.name : 'Produto removido') + ' · ' + variantLabel(v)) + '</div>' +
+        '<div class="move-sub">' + esc(sub) + '</div></div><div class="move-qty ' + (q > 0 ? 'pos' : '') + '">' + fmtSigned(q) + (val ? '<small>' + val + '</small>' : '') + '</div></button>';
+    }).join('');
+    return pills + '<div class="list">' + rows + '</div>' +
+      (list.length > moveLimit ? '<button class="btn-ghost wide-btn" data-action="more-moves">Ver mais (' + (list.length - moveLimit) + ')</button>' : '') +
+      '<p class="hint">Toca num movimento para o apagar. O stock é sempre a soma dos movimentos.</p>';
+  }
+
+  function renderReservations(S) {
+    const open = state.reservations.filter(r => r.status === 'open').sort((a, b) => (a.date > b.date ? 1 : -1));
+    const closed = state.reservations.filter(r => r.status !== 'open').sort((a, b) => ((b.closedAt || b.date) > (a.closedAt || a.date) ? 1 : -1)).slice(0, 15);
+    const openHtml = open.map(r => {
+      const p = findProduct(r.productId), v = findVariant(p, r.variantId), s = S[r.variantId] || blank;
+      const ready = s.phys >= toInt(r.qty);
+      return '<div class="card"><div class="res-top"><div><div class="product-name">' + esc(r.customer) + '</div><div class="move-sub">' + esc(RES_KINDS[r.kind] || 'Reserva') + ' · ' + fmtDate(r.date) + '</div></div>' +
+        '<span class="tag ' + (ready ? 'tag-good' : 'tag-bad') + '">' + (ready ? 'Pronta a entregar' : 'Por produzir') + '</span></div>' +
+        '<div class="res-line"><span>' + toInt(r.qty) + ' × ' + esc((p ? p.name : '—') + ' · ' + variantLabel(v)) + '</span><strong>' + fmtUSD(toInt(r.qty) * toNum(r.unitPrice)) + '</strong></div>' +
+        (r.note ? '<div class="res-note">' + esc(r.note) + '</div>' : '') +
+        '<div class="btn-row"><button class="btn-secondary" data-action="cancel-res" data-id="' + r.id + '">Cancelar</button><button class="btn-primary ' + (ready ? '' : 'is-off') + '" data-action="deliver-res" data-id="' + r.id + '">Entregar</button></div></div>';
+    }).join('');
+    const closedHtml = closed.map(r => {
+      const p = findProduct(r.productId), v = findVariant(p, r.variantId);
+      return '<div class="closed-row"><div><b>' + esc(r.customer) + '</b><br>' + toInt(r.qty) + ' × ' + esc((p ? p.name : '—') + ' · ' + variantLabel(v)) + '</div><span>' + (r.status === 'done' ? 'Entregue ' + fmtDate(r.closedAt || r.date) : 'Cancelada') + '</span></div>';
+    }).join('');
+    return '<div class="stack">' + (openHtml || emptyState('Não há reservas em aberto. Usa "Nova reserva" para pré-encomendas e lotes de revenda.')) + '</div>' +
+      (closedHtml ? '<div class="section-label">Entregues e canceladas</div>' + closedHtml : '') +
+      '<p class="hint">As reservas tiram peças ao stock disponível sem mexer no físico. Podes reservar mesmo sem stock: a diferença fica "por produzir".</p>';
+  }
+
+  /* ================= ecrã: Simulação ================= */
+  function barsHtml(result) {
+    const max = Math.max(result.totalRevenue, result.totalCost, Math.abs(result.netProfit), 1);
+    return barRow('Receita', result.totalRevenue, max, '') + barRow('Custos', result.totalCost, max, 'cost') + barRow('Lucro líquido', result.netProfit, max, result.netProfit < 0 ? 'loss' : 'profit');
+  }
+  function renderSim() {
+    const result = simulate();
+    const pills = Object.keys(PERIODS).map(k => '<button class="pill ' + (sim.period === k ? 'on' : '') + '" data-action="set-period" data-period="' + k + '">' + PERIODS[k].label + '</button>').join('');
+    const customRow = sim.period === 'custom' ? '<label><span class="label-text">Número de dias</span><input type="text" id="custom-days-input" inputmode="numeric" pattern="[0-9]*" value="' + esc(sim.customDays) + '"></label>' : '';
+    const rows = result.rows.map(r =>
+      '<div class="card"><div class="sim-row-name">' + esc(r.p.name) + '</div>' +
+      '<div class="sim-row-units"><input type="text" class="sim-units-input" data-sim-units="' + r.p.id + '" inputmode="decimal" value="' + round1(r.units) + '"><span class="sim-units-label">peças no período</span></div>' +
+      '<div class="sim-figs"><span>Receita<strong id="sim-rev-' + r.p.id + '">' + fmtUSD(r.revenue) + '</strong></span><span>Custo<strong id="sim-cost-' + r.p.id + '">' + fmtUSD(r.cost) + '</strong></span>' +
+      '<span>Lucro<strong class="' + (r.profit < 0 ? 'warn-text' : '') + '" id="sim-profit-' + r.p.id + '">' + fmtUSD(r.profit) + '</strong></span></div></div>').join('');
+    return '<div class="intro"><p class="tab-sub">Receita e lucro estimados para o período escolhido.</p></div>' +
+      '<div class="pill-row">' + pills + '</div>' + customRow +
+      '<div class="card" style="margin-bottom:12px"><div class="share-row"><div><div class="share-title">Peso da revenda</div><div class="hint" style="margin-top:2px">Parte das peças vendidas a preço de revenda.</div></div>' +
+      '<div class="share-input"><input type="text" id="share-input" inputmode="decimal" value="' + esc(plain(toNum(state.wholesaleShare))) + '"><span>%</span></div></div></div>' +
+      '<div class="stack">' + (rows || emptyState('Adiciona produtos para simular receita e lucro.')) + '</div>' +
+      (result.rows.length ? '<button class="btn-ghost wide-btn" data-action="reset-sim">Repor valores da base mensal</button>' : '') +
+      '<div class="stack" style="margin-top:14px"><div class="card kv-card">' +
+        '<div class="kv"><span>Receita total</span><strong id="sim-total-revenue">' + fmtUSD(result.totalRevenue) + '</strong></div>' +
+        '<div class="kv"><span>Custo dos produtos</span><strong id="sim-total-cost">' + fmtUSD(result.totalCost) + '</strong></div>' +
+        '<div class="kv"><span>Lucro bruto</span><strong id="sim-gross-profit">' + fmtUSD(result.grossProfit) + '</strong></div>' +
+        '<div class="kv"><span>Custos fixos <em>(período)</em></span><strong id="sim-fixed-total">' + fmtUSD(result.fixedTotal) + '</strong></div>' +
+        '<div class="kv total"><span>Lucro líquido</span><strong class="good-text" id="sim-net-profit">' + fmtUSD(result.netProfit) + '</strong></div>' +
+        '<div class="kv"><span>Margem líquida</span><strong id="sim-net-margin">' + fmtPct(result.netMarginPct) + '</strong></div></div>' +
+      '<div class="card">' + cardTitle('Resumo do período') + '<div class="bars" id="sim-bars">' + barsHtml(result) + '</div></div></div>' +
+      '<button class="btn-primary wide-btn" data-action="open-report">Ver relatório completo</button>' +
+      '<p class="hint">Inclui todos os parâmetros: cadeia de custos, preços por canal, custos fixos e resultado.</p>';
+  }
+  function updateSimComputedOnly() {
+    const result = simulate();
+    result.rows.forEach(r => {
+      setText('sim-rev-' + r.p.id, fmtUSD(r.revenue)); setText('sim-cost-' + r.p.id, fmtUSD(r.cost)); setText('sim-profit-' + r.p.id, fmtUSD(r.profit));
+      const el = byId('sim-profit-' + r.p.id); if (el) el.className = r.profit < 0 ? 'warn-text' : '';
+    });
+    setText('sim-total-revenue', fmtUSD(result.totalRevenue)); setText('sim-total-cost', fmtUSD(result.totalCost));
+    setText('sim-gross-profit', fmtUSD(result.grossProfit)); setText('sim-fixed-total', fmtUSD(result.fixedTotal));
+    setText('sim-net-profit', fmtUSD(result.netProfit)); setText('sim-net-margin', fmtPct(result.netMarginPct));
+    const np = byId('sim-net-profit'); if (np) np.className = result.netProfit < 0 ? 'warn-text' : 'good-text';
+    const bars = byId('sim-bars'); if (bars) bars.innerHTML = barsHtml(result);
+  }
+  function refreshSimUnitInputs() {
+    state.products.forEach(p => {
+      if (Object.prototype.hasOwnProperty.call(sim.overrides, p.id)) return;
+      const el = document.querySelector('[data-sim-units="' + p.id + '"]');
+      if (el && document.activeElement !== el) el.value = round1(toNum(p.monthlySales) * periodFactor());
+    });
+  }
+
+  /* ================= ecrãs: Mais, Coleções, Custos fixos ================= */
+  function renderMore() {
+    const nc = state.collections.length;
+    return '<div class="stack">' +
+      '<button class="card menu-row" data-action="goto" data-tab="collections"><div><strong>Coleções</strong><span>' + plural(nc, 'coleção', 'coleções') + ' · sell-through e retorno de cada drop</span></div><i>›</i></button>' +
+      '<button class="card menu-row" data-action="goto" data-tab="fixed"><div><strong>Custos fixos</strong><span>' + fmtUSD(totalFixedMonthly()) + ' por mês</span></div><i>›</i></button>' +
+      '<button class="card menu-row" data-action="open-settings"><div><strong>Definições e cópia de segurança</strong><span>Armazenamento, restaurar dados, sessão</span></div><i>›</i></button></div>';
+  }
+  const backBtn = () => '<button class="back-btn" data-action="goto" data-tab="more">‹ Mais</button>';
+
+  function renderCollections() {
+    const cols = state.collections.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+    const cards = cols.map(c => {
+      const prods = state.products.filter(p => p.collectionId === c.id);
+      const f = flowFor(new Set(prods.map(p => p.id)));
+      const prodRows = prods.map(p => { const pf = flowFor(new Set([p.id])); return '<div class="col-prod"><span>' + esc(p.name) + '</span><span>' + (pf.recv ? fmtPct(pf.st) + ' · ' + pf.sold + '/' + pf.recv : 'sem entradas') + '</span></div>'; }).join('');
+      return '<div class="card"><div class="col-head"><div><div class="col-name">' + esc(c.name) + '</div><div class="move-sub">Lançada a ' + fmtDate(c.date) + ' (' + agoText(c.date) + ') · ' + plural(prods.length, 'produto', 'produtos') + '</div></div>' +
+        '<button class="icon-btn" data-action="edit-collection" data-id="' + c.id + '" aria-label="Editar coleção">✎</button></div>' +
+        (f.recv ? '<div class="st-bar"><div style="width:' + Math.min(100, f.st).toFixed(1) + '%"></div></div><div class="st-legend"><span>Sell-through <b>' + fmtPct(f.st) + '</b></span><span>' + f.sold + ' de ' + f.recv + (f.recv === 1 ? ' peça vendida' : ' peças vendidas') + '</span></div>'
+          : '<p class="tab-sub" style="margin-top:12px">Ainda sem entradas de stock registadas para esta coleção.</p>') +
+        '<div class="trio money" style="margin-top:14px"><div><span>Investido</span><strong>' + fmtUSD(f.invested) + '</strong></div><div><span>Recuperado</span><strong>' + fmtUSD(f.recovered) + '</strong></div>' +
+        '<div><span>Resultado</span><strong class="' + (f.result < 0 ? 'warn-text' : 'good-text') + '">' + fmtUSD(f.result) + '</strong></div></div>' +
+        (prodRows ? '<div class="col-prods">' + prodRows + '</div>' : '') + '</div>';
+    }).join('');
+    const loose = state.products.filter(p => !findCollection(p.collectionId)).length;
+    return backBtn() + '<div class="intro"><p class="tab-sub">Cada coleção junta os produtos de um drop. O sell-through mostra que parte das peças recebidas já foi vendida; o resultado compara o que investiste nas entradas com o que já recuperaste em vendas.</p></div>' +
+      '<div class="stack">' + (cards || emptyState('Ainda não tens coleções. Cria a primeira e atribui-lhe produtos.')) + '</div>' +
+      (loose ? '<p class="hint">' + plural(loose, 'produto está', 'produtos estão') + ' sem coleção. Atribui-os ao editar o produto.</p>' : '') +
+      '<button class="btn-add" data-action="add-collection">+ Nova coleção</button>';
+  }
+
+  function renderFixed() {
+    const rows = state.fixedCosts.map(fc =>
+      '<div class="card list-card"><div><div class="list-card-title">' + esc(fc.label) + '</div><div class="list-card-sub">' + fmtUSD(toNum(fc.value)) + ' / ' + periodLabelPt(fc.period) + '</div></div>' +
+      '<div class="list-card-actions"><button class="icon-btn" data-action="edit-fixed" data-id="' + fc.id + '" aria-label="Editar">✎</button><button class="icon-btn" data-action="delete-fixed" data-id="' + fc.id + '" aria-label="Remover">✕</button></div></div>').join('');
+    return backBtn() + '<div class="intro"><p class="tab-sub">Custos do negócio que não dependem de um produto específico.</p></div>' +
+      '<div class="card kv-card" style="margin-bottom:12px"><div class="kv"><span>Total mensal equivalente</span><strong>' + fmtUSD(totalFixedMonthly()) + '</strong></div></div>' +
+      '<div class="stack">' + (rows || emptyState('Ainda não tens custos fixos. Adiciona o primeiro.')) + '</div>' +
+      '<button class="btn-add" data-action="add-fixed">+ Adicionar custo fixo</button>';
+  }
+
+  function renderOffline() {
+    return '<div class="card login-card"><h2>Sem ligação</h2><p class="tab-sub">Não foi possível carregar os dados da NSH. Confirma a ligação à internet e tenta de novo.</p>' +
+      '<button class="btn-primary wide-btn" data-action="retry-load">Tentar de novo</button></div>';
+  }
+  function renderLogin() {
+    return '<div class="card login-card"><h2>Entrar</h2><p class="tab-sub">Acesso reservado. Usa o email e a palavra-passe criados no Supabase.</p>' +
+      '<label><span class="label-text">Email</span><input type="email" id="lg-email" autocomplete="username" inputmode="email" autocapitalize="none"></label>' +
+      '<label><span class="label-text">Palavra-passe</span><input type="password" id="lg-pass" autocomplete="current-password"></label>' +
+      '<button class="btn-primary wide-btn" data-action="login">Entrar</button></div>';
+  }
+
+  /* ================= render principal ================= */
+  const TITLES = { dashboard: 'Painel', products: 'Produtos', stock: 'Stock', sim: 'Simulação', more: 'Mais', collections: 'Coleções', fixed: 'Custos fixos' };
+  function render() {
+    const content = byId('app-content');
+    try {
+      if (needsLogin()) content.innerHTML = renderLogin();
+      else if (cloudDown()) content.innerHTML = renderOffline();
+      else {
+        const map = { dashboard: renderDashboard, products: renderProducts, stock: renderStock, sim: renderSim, more: renderMore, collections: renderCollections, fixed: renderFixed };
+        content.innerHTML = (map[activeTab] || renderDashboard)();
+      }
+      const navTab = (activeTab === 'collections' || activeTab === 'fixed') ? 'more' : activeTab;
+      $all('#app-nav [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === navTab));
+      setText('header-title', TITLES[activeTab] || '');
+    } catch (err) {
+      content.innerHTML = emptyState('Ocorreu um erro ao mostrar este ecrã. Muda de separador e tenta novamente.');
+      if (window.console) console.error(err);
+    }
+  }
+  function goTab(t) { activeTab = t; render(); byId('app-content').scrollTop = 0; }
+
+  /* ================= avisos e janelas ================= */
+  function showToast(message, type) {
+    const root = byId('toast-root');
+    root.innerHTML = '<div class="toast ' + (type === 'warn' ? 'toast-warn' : '') + '">' + esc(message) + '</div>';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { root.innerHTML = ''; }, type === 'warn' ? 4200 : 2600);
+  }
+  const modalRoot = byId('modal-root');
+  function closeModal() { modalRoot.innerHTML = ''; }
+  function sheet(title, body, foot, small) {
+    modalRoot.innerHTML = '<div class="modal-overlay"><div class="modal-sheet ' + (small ? 'modal-sheet-sm' : '') + '" role="dialog" aria-modal="true">' +
+      '<div class="modal-head"><h2>' + title + '</h2><button class="icon-btn" data-action="close-modal" aria-label="Fechar">✕</button></div>' +
+      '<div class="modal-body">' + body + '</div>' + (foot ? '<div class="modal-foot">' + foot + '</div>' : '') + '</div></div>';
+  }
+  function openConfirmModal(message, onConfirm, label, primary) {
+    confirmCallback = onConfirm;
+    modalRoot.innerHTML = '<div class="modal-overlay"><div class="confirm-sheet" role="alertdialog" aria-modal="true"><p>' + esc(message) + '</p>' +
+      '<div class="confirm-actions"><button class="btn-secondary" data-action="close-confirm">Voltar</button>' +
+      '<button class="' + (primary ? 'btn-primary' : 'btn-danger') + '" data-action="do-confirm">' + esc(label || 'Remover') + '</button></div></div></div>';
+  }
+  const field = (label, inner, id) => '<label' + (id ? ' id="' + id + '"' : '') + '><span class="label-text"' + (id ? ' id="' + id + '-label"' : '') + '>' + label + '</span>' + inner + '</label>';
+  const selectWrap = (id, optionsHtml) => '<div class="select-wrap"><select id="' + id + '">' + optionsHtml + '</select></div>';
+  const productOptions = sel => state.products.map(p => '<option value="' + p.id + '"' + (p.id === sel ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
+  function fillVariantSelect(selId, p, selVid) {
+    const el = byId(selId); if (!el || !p) return;
+    el.innerHTML = activeVariants(p).map(v => '<option value="' + v.id + '"' + (v.id === selVid ? ' selected' : '') + '>' + esc(variantLabel(v)) + '</option>').join('');
+  }
+  const footSave = (saveAction, removeAction) => (removeAction ? '<button class="btn-danger" data-action="' + removeAction + '">Remover</button>' : '') +
+    '<div class="modal-foot-actions"><button class="btn-secondary" data-action="close-modal">Cancelar</button><button class="btn-primary" data-action="' + saveAction + '">Guardar</button></div>';
+
+  /* ---------- Produto ---------- */
+  function costRowHtml(c) {
+    return '<div class="cost-row" data-cost-id="' + c.id + '"><input type="text" class="cost-label" value="' + esc(c.label || '') + '" placeholder="Descrição do custo">' +
+      '<input type="text" class="cost-value" inputmode="decimal" value="' + (c.value === '' || c.value == null ? '' : esc(c.value)) + '" placeholder="0.00">' +
+      '<button type="button" class="icon-btn" data-action="remove-cost-row" data-id="' + c.id + '" aria-label="Remover custo">✕</button></div>';
+  }
+  const readCostRows = () => $all('#cost-rows .cost-row').map(row => ({ id: row.dataset.costId, label: row.querySelector('.cost-label').value, value: row.querySelector('.cost-value').value }));
+  function refreshProductSummary() {
+    const price = toNum(getVal('f-price')), wsRaw = toNum(getVal('f-ws'));
+    const cost = readCostRows().reduce((s, c) => s + toNum(c.value), 0);
+    const el = byId('product-summary'); if (!el) return;
+    el.innerHTML =
+      '<div class="kv"><span>Custo total por peça</span><strong>' + fmtUSD(cost) + '</strong></div>' +
+      '<div class="kv"><span>Margem na loja</span><strong class="' + (price - cost < 0 ? 'warn-text' : '') + '">' + fmtPct(marginAt(price, cost)) + ' · ' + fmtUSD(price - cost) + '</strong></div>' +
+      '<div class="kv"><span>Margem na revenda</span><strong class="' + (wsRaw && wsRaw - cost < 0 ? 'warn-text' : '') + '">' + (wsRaw ? fmtPct(marginAt(wsRaw, cost)) + ' · ' + fmtUSD(wsRaw - cost) : '—') + '</strong></div>' +
+      '<div class="kv"><span>Markup <em>sobre o custo</em></span><strong>' + fmtPct(markupAt(price, cost)) + (wsRaw ? ' / ' + fmtPct(markupAt(wsRaw, cost)) : '') + '</strong></div>';
+  }
+  function openProductModal(id) {
+    editingProductId = id;
+    const p = id ? findProduct(id) : null;
+    const costs = p ? p.costs : [{ id: genId('c'), label: '', value: '' }];
+    const colOpts = '<option value="">Sem coleção</option>' + state.collections.map(c => '<option value="' + c.id + '"' + (p && p.collectionId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('');
+    const sizes = p ? activeVariants(p).map(v => v.size).filter((x, i, a) => a.indexOf(x) === i) : ['S', 'M', 'L', 'XL'];
+    const colors = p ? activeVariants(p).map(v => v.color).filter((x, i, a) => x && a.indexOf(x) === i) : [];
+    const body = '<div id="product-form">' +
+      field('Nome do produto', '<input type="text" id="f-name" value="' + (p ? esc(p.name) : '') + '" placeholder="Ex: Hoodie NSH Classic">') +
+      '<div class="field-row">' + field('Código / SKU', '<input type="text" id="f-sku" value="' + (p ? esc(p.sku || '') : '') + '" placeholder="Opcional" autocapitalize="characters">') +
+        field('Coleção', selectWrap('f-col', colOpts)) + '</div>' +
+      '<div class="form-section">Preços por canal (USD)</div>' +
+      '<div class="field-row">' + field('Preço de venda', '<input type="text" id="f-price" inputmode="decimal" value="' + (p ? esc(plain(toNum(p.price))) : '') + '" placeholder="0.00">') +
+        field('Preço de revenda', '<input type="text" id="f-ws" inputmode="decimal" value="' + (p && toNum(p.wsPrice) ? esc(plain(toNum(p.wsPrice))) : '') + '" placeholder="0.00">') + '</div>' +
+      '<div class="field-row">' + field('Vendas por mês', '<input type="text" id="f-monthly" inputmode="decimal" value="' + (p ? esc(plain(toNum(p.monthlySales))) : '') + '" placeholder="Estimativa">') +
+        field('Alerta de stock', '<input type="text" id="f-min" inputmode="numeric" pattern="[0-9]*" value="' + (p ? toInt(p.minStock) : 2) + '">') + '</div>' +
+      '<div class="form-section">Variantes</div>' +
+      field('Tamanhos', '<input type="text" id="f-sizes" value="' + esc(sizes.join(', ')) + '" placeholder="Ex: S, M, L, XL">') +
+      field('Cores', '<input type="text" id="f-colors" value="' + esc(colors.join(', ')) + '" placeholder="Ex: Preto, Branco">') +
+      '<div class="info-box">Separa por vírgulas. Cada combinação de tamanho e cor é uma variante com stock próprio. O alerta de stock aplica-se a cada variante.' + (p ? '' : ' Depois de guardar, regista a entrada de stock no separador Stock.') + '</div>' +
+      '<div class="cost-chain-head"><span>Cadeia de custos (por peça)</span><button type="button" class="btn-ghost" data-action="add-cost-row">+ Custo</button></div>' +
+      '<div id="cost-rows">' + costs.map(costRowHtml).join('') + '</div>' +
+      '<div class="card kv-card" id="product-summary" style="margin-top:8px"></div></div>';
+    sheet(p ? 'Editar produto' : 'Novo produto', body, footSave('save-product', p ? 'delete-product-from-modal' : ''));
+    refreshProductSummary();
+  }
+  function saveProductFromModal() {
+    const name = getVal('f-name').trim();
+    if (!name) { showToast('Indica um nome para o produto.', 'warn'); const el = byId('f-name'); if (el) el.focus(); return; }
+    const existing = editingProductId ? findProduct(editingProductId) : null;
+    const sizes = parseList(getVal('f-sizes')), colors = parseList(getVal('f-colors'));
+    const ss = sizes.length ? sizes : ['Único'], cc = colors.length ? colors : [''];
+    const old = existing ? existing.variants : [];
+    const S = computeStock();
+    const next = [];
+    ss.forEach(s => cc.forEach(c => {
+      const ex = old.find(v => v.size === s && v.color === c);
+      if (ex) { delete ex.archived; next.push(ex); } else next.push({ id: genId('v'), size: s, color: c });
+    }));
+    const removed = old.filter(v => next.indexOf(v) === -1);
+    for (const v of removed) {
+      const s = S[v.id] || blank;
+      if (s.res > 0) { showToast('Não podes remover a variante ' + variantLabel(v) + ': tem reservas em aberto.', 'warn'); return; }
+      if (s.phys !== 0) { showToast('Não podes remover a variante ' + variantLabel(v) + ': ainda tem ' + plural(s.phys, 'peça', 'peças') + ' em stock. Regista um ajuste de contagem para 0 antes de a remover.', 'warn'); return; }
+    }
+    const keep = removed.filter(v => state.movements.some(m => m.variantId === v.id) || state.reservations.some(r => r.variantId === v.id));
+    keep.forEach(v => { v.archived = true; });
+    const costs = readCostRows().map(c => ({ id: c.id, label: (c.label || '').trim() || 'Custo', value: toNum(c.value) })).filter(c => c.label !== 'Custo' || c.value > 0);
+    const data = {
+      name, sku: getVal('f-sku').trim(), collectionId: getVal('f-col'), price: toNum(getVal('f-price')), wsPrice: toNum(getVal('f-ws')),
+      monthlySales: toNum(getVal('f-monthly')), minStock: toInt(getVal('f-min')), sizes: ss, colors: cc.filter(Boolean),
+      costs: costs.length ? costs : [{ id: genId('c'), label: 'Custo', value: 0 }], variants: next.concat(keep)
+    };
+    const prod = clone(Object.assign({ id: existing ? existing.id : genId('prod') }, data));
+    commit({ catalog: c => { const i = c.products.findIndex(x => x.id === prod.id); if (i > -1) c.products[i] = clone(prod); else c.products.push(clone(prod)); } });
+    closeModal(); render();
+    showToast(keep.length ? 'Produto guardado. Variantes com histórico ficaram arquivadas.' : 'Produto guardado.');
+  }
+  function confirmDeleteProduct(id) {
+    const p = findProduct(id); if (!p) return;
+    const nm = state.movements.filter(m => m.productId === id).length + state.reservations.filter(r => r.productId === id).length;
+    openConfirmModal('Queres remover "' + p.name + '"?' + (nm ? ' Também apagas ' + plural(nm, 'movimento ou reserva', 'movimentos e reservas') + ' deste produto.' : '') + ' Não é possível recuperar depois.', () => {
+      delete sim.overrides[id];
+      commit({ moves: { removeProduct: id }, res: { removeProduct: id }, catalog: c => { c.products = c.products.filter(x => x.id !== id); } });
+      render(); showToast('Produto removido.');
+    });
+  }
+
+  /* ---------- Movimento ---------- */
+  function openMoveModal(preset) {
+    if (!state.products.length) { showToast('Adiciona primeiro um produto.', 'warn'); return; }
+    const p = (preset && preset.pid && findProduct(preset.pid)) || state.products[0];
+    const vsel = (preset && preset.vid) || (activeVariants(p)[0] || {}).id;
+    mv.priceTouched = false; mv.costTouched = false; mv.lastType = null; mv.lastVid = null;
+    const body =
+      field('Tipo de movimento', selectWrap('mv-type', opts(MOVE_TYPES, (preset && preset.type) || lastMoveType))) +
+      '<div class="field-row">' + field('Produto', selectWrap('mv-prod', productOptions(p.id))) + field('Variante', selectWrap('mv-var', '')) + '</div>' +
+      '<div class="info-box" id="mv-info"></div>' +
+      '<div class="field-row">' + field('Quantidade', '<input type="text" id="mv-qty" inputmode="numeric" pattern="[0-9]*" value="1">', 'mv-qty-wrap') +
+        field('Data', '<input type="date" id="mv-date" value="' + todayISO() + '" max="' + todayISO() + '">') + '</div>' +
+      field('Canal de venda', selectWrap('mv-ch', opts(CHANNELS, 'loja')), 'mv-ch-wrap') +
+      field('Preço por peça (USD)', '<input type="text" id="mv-price" inputmode="decimal">', 'mv-price-wrap') +
+      field('Custo por peça neste lote (USD)', '<input type="text" id="mv-cost" inputmode="decimal">', 'mv-cost-wrap') +
+      field('Nota (opcional)', '<input type="text" id="mv-note" maxlength="120" placeholder="Ex: cliente, motivo, n.º de encomenda">');
+    sheet('Registar movimento', body, '<div class="modal-foot-actions"><button class="btn-secondary" data-action="close-modal">Cancelar</button><button class="btn-primary" data-action="save-move">Registar</button></div>');
+    fillVariantSelect('mv-var', p, vsel);
+    syncMove();
+  }
+  function syncMove() {
+    const type = getVal('mv-type'), p = findProduct(getVal('mv-prod')); if (!p) return;
+    const vid = getVal('mv-var'), s = computeStock()[vid] || blank;
+    byId('mv-ch-wrap').hidden = type !== 'sale';
+    byId('mv-price-wrap').hidden = !(type === 'sale' || type === 'return');
+    byId('mv-cost-wrap').hidden = type !== 'in';
+    setText('mv-qty-wrap-label', type === 'adjust' ? 'Contagem real (peças)' : 'Quantidade');
+    setText('mv-price-wrap-label', type === 'return' ? 'Valor reembolsado por peça (USD)' : 'Preço por peça (USD)');
+    if (!mv.priceTouched) byId('mv-price').value = plain(priceFor(p, type === 'sale' ? getVal('mv-ch') : 'loja'));
+    if (!mv.costTouched) byId('mv-cost').value = plain(unitCost(p));
+    const q = byId('mv-qty');
+    if (type === 'adjust' && (mv.lastType !== 'adjust' || mv.lastVid !== vid)) q.value = String(Math.max(0, s.phys));
+    else if (type !== 'adjust' && mv.lastType === 'adjust') q.value = '1';
+    mv.lastType = type; mv.lastVid = vid;
+    byId('mv-info').innerHTML = 'No sistema: <strong>' + s.phys + '</strong> físico · <strong>' + s.res + '</strong> reservado · <strong class="' + (s.avail < 0 ? 'warn-text' : '') + '">' + s.avail + '</strong> disponível' +
+      (type === 'adjust' ? '<br>Indica quantas peças contaste. A diferença é registada automaticamente.' : '');
+  }
+  let busy = false;
+  async function guarded(btn, fn) {
+    if (busy) return; busy = true; if (btn) btn.disabled = true;
+    try { await fn(); } finally { busy = false; if (btn && document.body.contains(btn)) btn.disabled = false; }
+  }
+  async function saveMove() {
+    const type = getVal('mv-type');
+    if (type !== 'in' && type !== 'return') { try { await freshForCheck(); } catch (e) { return; } }
+    const p = findProduct(getVal('mv-prod')), v = findVariant(p, getVal('mv-var'));
+    if (!p || !v) { showToast('Escolhe o produto e a variante.', 'warn'); return; }
+    const s = computeStock()[v.id] || blank;
+    const date = validDate(getVal('mv-date'));
+    const note = getVal('mv-note').trim().slice(0, 120);
+    let qty;
+    if (type === 'adjust') {
+      const raw = getVal('mv-qty').replace(/\s/g, '');
+      if (!/^\d+$/.test(raw)) { showToast('Indica quantas peças contaste (número inteiro).', 'warn'); return; }
+      qty = parseInt(raw, 10) - s.phys;
+      if (qty === 0) { showToast('A contagem é igual ao stock no sistema. Não há nada a ajustar.', 'warn'); return; }
+    } else {
+      qty = toInt(getVal('mv-qty'));
+      if (qty < 1) { showToast('Indica uma quantidade igual ou superior a 1.', 'warn'); return; }
+      if (type === 'sale' && qty > s.avail) {
+        showToast(s.phys >= qty
+          ? (s.avail > 0 ? 'Só há ' + plural(s.avail, 'peça disponível', 'peças disponíveis') : 'Não há peças disponíveis') + ': ' + plural(s.res, 'peça desta variante está reservada', 'peças desta variante estão reservadas') + '. Para entregar uma reserva, usa o separador Reservas.'
+          : 'Só tens ' + plural(Math.max(0, s.phys), 'peça', 'peças') + ' em stock físico desta variante.', 'warn');
+        return;
+      }
+      if ((type === 'sample' || type === 'loss') && qty > s.phys) { showToast('Só tens ' + plural(Math.max(0, s.phys), 'peça', 'peças') + ' em stock físico desta variante.', 'warn'); return; }
+    }
+    const m = { id: genId('m'), type, productId: p.id, variantId: v.id, qty, date, note };
+    if (type === 'sale') {
+      m.channel = getVal('mv-ch'); m.unitPrice = toNum(getVal('mv-price'));
+      if (!m.unitPrice) { showToast('Indica o preço de venda por peça. Para peças oferecidas usa "Amostra / oferta".', 'warn'); return; }
+    }
+    if (type === 'return') m.unitPrice = toNum(getVal('mv-price'));
+    if (type === 'in') m.unitCost = toNum(getVal('mv-cost'));
+    lastMoveType = type;
+    closeModal();
+    commit({ moves: { add: [m] } });
+    render();
+    showToast(type === 'adjust' ? 'Ajuste registado (' + fmtSigned(qty) + ' ' + (Math.abs(qty) === 1 ? 'peça' : 'peças') + ').' : 'Movimento registado.');
+  }
+  async function confirmDeleteMove(id) {
+    try { await freshForCheck(); } catch (e) { return; }
+    const m = state.movements.find(x => x.id === id); if (!m) { showToast('Este movimento já foi apagado.', 'warn'); render(); return; }
+    const s = computeStock()[m.variantId] || blank;
+    if (s.phys - signedQty(m) < 0) { showToast('Não podes apagar este movimento: o stock físico desta variante ficaria negativo. Regista antes um ajuste de contagem.', 'warn'); return; }
+    const r = m.reservationId ? state.reservations.find(x => x.id === m.reservationId) : null;
+    openConfirmModal('Apagar este movimento (' + MOVE_TYPES[m.type].label.toLowerCase() + ', ' + fmtSigned(signedQty(m)) + ' ' + (Math.abs(signedQty(m)) === 1 ? 'peça' : 'peças') + ')? O stock é recalculado.' + (r ? ' A reserva associada volta a ficar em aberto.' : ''), () => {
+      commit({ moves: { removeIds: [id] }, res: r ? { update: [{ id: r.id, patch: { status: 'open', closedAt: null } }] } : undefined });
+      render(); showToast('Movimento apagado.');
+    }, 'Apagar');
+  }
+
+  /* ---------- Reserva ---------- */
+  function openResModal() {
+    if (!state.products.length) { showToast('Adiciona primeiro um produto.', 'warn'); return; }
+    const p = state.products[0];
+    rs.priceTouched = false;
+    const body =
+      '<div class="field-row">' + field('Tipo', selectWrap('rs-kind', opts(RES_KINDS, 'preenc'))) + field('Data', '<input type="date" id="rs-date" value="' + todayISO() + '" max="' + todayISO() + '">') + '</div>' +
+      field('Cliente ou parceiro', '<input type="text" id="rs-customer" maxlength="80" placeholder="Ex: nome do cliente ou Retail Partner">') +
+      '<div class="field-row">' + field('Produto', selectWrap('rs-prod', productOptions(p.id))) + field('Variante', selectWrap('rs-var', '')) + '</div>' +
+      '<div class="field-row">' + field('Quantidade', '<input type="text" id="rs-qty" inputmode="numeric" pattern="[0-9]*" value="1">') + field('Preço por peça (USD)', '<input type="text" id="rs-price" inputmode="decimal">') + '</div>' +
+      '<div class="info-box" id="rs-info"></div>' +
+      field('Nota (opcional)', '<input type="text" id="rs-note" maxlength="120" placeholder="Ex: sinal pago, prazo de entrega">');
+    sheet('Nova reserva', body, '<div class="modal-foot-actions"><button class="btn-secondary" data-action="close-modal">Cancelar</button><button class="btn-primary" data-action="save-res">Criar reserva</button></div>');
+    fillVariantSelect('rs-var', p, null);
+    syncRes();
+  }
+  function syncRes() {
+    const p = findProduct(getVal('rs-prod')); if (!p) return;
+    const s = computeStock()[getVal('rs-var')] || blank, qty = toInt(getVal('rs-qty'));
+    if (!rs.priceTouched) byId('rs-price').value = plain(priceFor(p, getVal('rs-kind') === 'revenda' ? 'revenda' : 'loja'));
+    const missing = qty - Math.max(0, s.avail);
+    byId('rs-info').innerHTML = 'Disponível agora: <strong class="' + (s.avail < 0 ? 'warn-text' : '') + '">' + s.avail + '</strong>' +
+      (missing > 0 && qty > 0 ? ' · ficam <strong class="warn-text">' + missing + '</strong> ' + (missing === 1 ? 'peça' : 'peças') + ' por produzir' : '');
+  }
+  function saveRes() {
+    const p = findProduct(getVal('rs-prod')), v = findVariant(p, getVal('rs-var'));
+    const customer = getVal('rs-customer').trim(), qty = toInt(getVal('rs-qty')), price = toNum(getVal('rs-price'));
+    if (!customer) { showToast('Indica o cliente ou parceiro.', 'warn'); const el = byId('rs-customer'); if (el) el.focus(); return; }
+    if (!p || !v) { showToast('Escolhe o produto e a variante.', 'warn'); return; }
+    if (qty < 1) { showToast('Indica uma quantidade igual ou superior a 1.', 'warn'); return; }
+    if (!price) { showToast('Indica o preço por peça.', 'warn'); return; }
+    const r = { id: genId('r'), kind: getVal('rs-kind'), customer, productId: p.id, variantId: v.id, qty, unitPrice: price, date: validDate(getVal('rs-date')), status: 'open', note: getVal('rs-note').trim() };
+    stockView = 'res';
+    closeModal();
+    commit({ res: { add: [r] } });
+    render(); showToast('Reserva criada.');
+  }
+  async function deliverRes(id) {
+    try { await freshForCheck(); } catch (e) { return; }
+    const r = state.reservations.find(x => x.id === id);
+    if (!r || r.status !== 'open') { showToast('Esta reserva já não está em aberto.', 'warn'); render(); return; }
+    const p = findProduct(r.productId), v = findVariant(p, r.variantId), s = computeStock()[r.variantId] || blank, q = toInt(r.qty);
+    if (s.phys < q) { showToast('Ainda não há stock para entregar: tens ' + Math.max(0, s.phys) + ' de ' + plural(q, 'peça', 'peças') + '. Regista primeiro a entrada de stock.', 'warn'); return; }
+    openConfirmModal('Entregar ' + q + ' × ' + (p ? p.name : '') + ' ' + variantLabel(v) + ' a ' + r.customer + '? Fica registada uma venda de ' + fmtUSD(q * toNum(r.unitPrice)) + '.', () => {
+      const m = { id: genId('m'), type: 'sale', productId: r.productId, variantId: r.variantId, qty: q, date: todayISO(), channel: r.kind === 'revenda' ? 'revenda' : 'preenc',
+        unitPrice: toNum(r.unitPrice), note: 'Reserva: ' + r.customer, reservationId: r.id };
+      commit({ moves: { add: [m] }, res: { update: [{ id: r.id, patch: { status: 'done', closedAt: todayISO() } }] } });
+      render(); showToast('Reserva entregue e venda registada.');
+    }, 'Entregar', true);
+  }
+  function cancelRes(id) {
+    const r = state.reservations.find(x => x.id === id); if (!r) return;
+    openConfirmModal('Cancelar a reserva de ' + r.customer + '? As peças voltam a ficar disponíveis.', () => {
+      commit({ res: { update: [{ id: r.id, patch: { status: 'cancelled', closedAt: todayISO() } }] } });
+      render(); showToast('Reserva cancelada.');
+    }, 'Cancelar reserva');
+  }
+
+  /* ---------- Coleção ---------- */
+  function openCollectionModal(id) {
+    editingCollectionId = id;
+    const c = id ? findCollection(id) : null;
+    const body = field('Nome da coleção', '<input type="text" id="cl-name" maxlength="60" value="' + (c ? esc(c.name) : '') + '" placeholder="Ex: Drop 02 · Verão">') +
+      field('Data de lançamento', '<input type="date" id="cl-date" value="' + (c ? esc(c.date) : todayISO()) + '">') +
+      '<div class="info-box">Os produtos são atribuídos à coleção na ficha de cada produto.</div>';
+    sheet(c ? 'Editar coleção' : 'Nova coleção', body, footSave('save-collection', c ? 'delete-collection' : ''), true);
+  }
+  function saveCollection() {
+    const name = getVal('cl-name').trim();
+    if (!name) { showToast('Indica um nome para a coleção.', 'warn'); return; }
+    const date = getVal('cl-date') || todayISO();
+    const cid = editingCollectionId || genId('col');
+    commit({ catalog: cat => { const x = cat.collections.find(k => k.id === cid); if (x) { x.name = name; x.date = date; } else cat.collections.push({ id: cid, name, date }); } });
+    closeModal(); render(); showToast('Coleção guardada.');
+  }
+  function confirmDeleteCollection(id) {
+    const c = findCollection(id); if (!c) return;
+    openConfirmModal('Remover a coleção "' + c.name + '"? Os produtos e o histórico ficam; apenas deixam de estar agrupados.', () => {
+      commit({ catalog: cat => { cat.collections = cat.collections.filter(x => x.id !== id); cat.products.forEach(p => { if (p.collectionId === id) p.collectionId = ''; }); } });
+      render(); showToast('Coleção removida.');
+    });
+  }
+
+  /* ---------- Custo fixo ---------- */
+  function openFixedModal(id) {
+    editingFixedId = id;
+    const fc = id ? state.fixedCosts.find(x => x.id === id) : null;
+    const per = fc ? fc.period : 'monthly';
+    const body = field('Descrição', '<input type="text" id="ff-label" value="' + (fc ? esc(fc.label) : '') + '" placeholder="Ex: Aluguer do estúdio">') +
+      '<div class="field-row">' + field('Valor (USD)', '<input type="text" id="ff-value" inputmode="decimal" value="' + (fc ? esc(plain(toNum(fc.value))) : '') + '" placeholder="0.00">') +
+      field('Periodicidade', selectWrap('ff-period', opts({ monthly: 'Mensal', weekly: 'Semanal', annual: 'Anual' }, per))) + '</div>';
+    sheet(fc ? 'Editar custo fixo' : 'Novo custo fixo', body, footSave('save-fixed', fc ? 'delete-fixed-from-modal' : ''), true);
+  }
+  function saveFixedFromModal() {
+    const label = getVal('ff-label').trim();
+    if (!label) { showToast('Indica uma descrição para o custo fixo.', 'warn'); return; }
+    const value = toNum(getVal('ff-value')), period = getVal('ff-period') || 'monthly';
+    const fid = editingFixedId || genId('fx');
+    commit({ catalog: cat => { const x = cat.fixedCosts.find(k => k.id === fid); if (x) Object.assign(x, { label, value, period }); else cat.fixedCosts.push({ id: fid, label, value, period }); } });
+    closeModal(); render(); showToast('Custo fixo guardado.');
+  }
+  function confirmDeleteFixed(id) {
+    const fc = state.fixedCosts.find(x => x.id === id); if (!fc) return;
+    openConfirmModal('Queres remover "' + fc.label + '"? Não é possível recuperar depois.', () => {
+      commit({ catalog: cat => { cat.fixedCosts = cat.fixedCosts.filter(x => x.id !== id); } });
+      render(); showToast('Custo fixo removido.');
+    });
+  }
+
+  /* ---------- Relatório ---------- */
+  const currentPeriodLabel = () => (sim.period === 'custom' ? Math.max(1, toNum(sim.customDays)) + ' dias' : PERIODS[sim.period].label);
+  function reportHtml(result) {
+    const dateStr = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const prodRows = result.rows.map(r => {
+      const chain = (r.p.costs || []).map(c => esc(c.label || 'Custo') + ' ' + fmtUSD(toNum(c.value))).join(' · ');
+      return '<tr><td colspan="2"><strong>' + esc(r.p.name) + '</strong>' + (r.p.sku ? ' <span style="color:#888">' + esc(r.p.sku) + '</span>' : '') + '</td><td class="num">' + round1(r.units) + ' peças</td></tr>' +
+        '<tr><td colspan="3" class="report-chain">Cadeia de custos: ' + (chain || '—') + '</td></tr>' +
+        '<tr><td>Loja ' + fmtUSD(toNum(r.p.price)) + ' (' + fmtPct(marginPct(r.p)) + ')</td><td>Revenda ' + (toNum(r.p.wsPrice) ? fmtUSD(toNum(r.p.wsPrice)) + ' (' + fmtPct(wsMarginPct(r.p)) + ')' : '—') + '</td><td class="num">Custo ' + fmtUSD(unitCost(r.p)) + '</td></tr>' +
+        '<tr><td>Receita ' + fmtUSD(r.revenue) + '</td><td>Custo ' + fmtUSD(r.cost) + '</td><td class="num' + (r.profit < 0 ? ' neg' : '') + '"><strong>Lucro ' + fmtUSD(r.profit) + '</strong></td></tr>';
+    }).join('');
+    const fixedRows = state.fixedCosts.map(fc => '<tr><td colspan="2">' + esc(fc.label) + ' <span style="color:#888">(' + periodLabelPt(fc.period) + ')</span></td><td class="num">' + fmtUSD(fixedCostMonthly(fc) * periodFactor()) + '</td></tr>').join('');
+    return '<div class="report-sheet-wrap"><h1>NO SAFETY HOOD</h1>' +
+      '<p class="report-meta">Simulação de receita e lucro · Período: ' + esc(currentPeriodLabel()) + ' · Revenda: ' + fmtPct(shareFrac() * 100) + ' das peças · Gerado em ' + dateStr + ' · Valores em USD</p>' +
+      '<div class="report-section-title">Produtos</div><table class="report-table"><tbody>' + (prodRows || '<tr><td colspan="3">Sem produtos.</td></tr>') + '</tbody></table>' +
+      '<div class="report-section-title">Custos fixos no período</div><table class="report-table"><tbody>' + (fixedRows || '<tr><td colspan="3">Sem custos fixos.</td></tr>') + '</tbody></table>' +
+      '<div class="report-section-title">Resultado</div><table class="report-table"><tbody>' +
+        '<tr><td colspan="2">Receita total</td><td class="num">' + fmtUSD(result.totalRevenue) + '</td></tr>' +
+        '<tr><td colspan="2">Custo dos produtos</td><td class="num">' + fmtUSD(result.totalCost) + '</td></tr>' +
+        '<tr><td colspan="2">Lucro bruto</td><td class="num">' + fmtUSD(result.grossProfit) + '</td></tr>' +
+        '<tr><td colspan="2">Margem bruta</td><td class="num">' + fmtPct(result.grossMarginPct) + '</td></tr>' +
+        '<tr><td colspan="2">Custos fixos</td><td class="num">' + fmtUSD(result.fixedTotal) + '</td></tr>' +
+        '<tr class="total-row"><td colspan="2">Lucro líquido</td><td class="num' + (result.netProfit < 0 ? ' neg' : '') + '">' + fmtUSD(result.netProfit) + '</td></tr>' +
+        '<tr><td colspan="2">Margem líquida</td><td class="num">' + fmtPct(result.netMarginPct) + '</td></tr></tbody></table>' +
+      '<p class="report-note">Relatório gerado pelo Painel de Gestão NSH. As peças por período podem ter sido ajustadas manualmente na simulação. A receita usa o peso da revenda indicado acima.</p></div>';
+  }
+  function reportPlainText(result) {
+    const L = [];
+    L.push('NO SAFETY HOOD — Simulação de receita e lucro');
+    L.push('Período: ' + currentPeriodLabel() + ' · Revenda: ' + fmtPct(shareFrac() * 100) + ' das peças · Valores em USD');
+    L.push('Gerado em ' + new Date().toLocaleDateString('pt-PT'));
+    L.push(''); L.push('PRODUTOS');
+    result.rows.forEach(r => {
+      L.push('- ' + r.p.name + (r.p.sku ? ' (' + r.p.sku + ')' : ''));
+      (r.p.costs || []).forEach(c => L.push('    custo: ' + (c.label || 'Custo') + ' ' + fmtUSD(toNum(c.value))));
+      L.push('    loja ' + fmtUSD(toNum(r.p.price)) + ' (' + fmtPct(marginPct(r.p)) + ') | revenda ' + (toNum(r.p.wsPrice) ? fmtUSD(toNum(r.p.wsPrice)) + ' (' + fmtPct(wsMarginPct(r.p)) + ')' : '—') + ' | custo ' + fmtUSD(unitCost(r.p)));
+      L.push('    ' + round1(r.units) + ' peças | receita ' + fmtUSD(r.revenue) + ' | custo ' + fmtUSD(r.cost) + ' | lucro ' + fmtUSD(r.profit));
+    });
+    L.push(''); L.push('CUSTOS FIXOS NO PERÍODO');
+    state.fixedCosts.forEach(fc => L.push('- ' + fc.label + ': ' + fmtUSD(fixedCostMonthly(fc) * periodFactor())));
+    L.push(''); L.push('RESULTADO');
+    L.push('Receita total: ' + fmtUSD(result.totalRevenue));
+    L.push('Custo dos produtos: ' + fmtUSD(result.totalCost));
+    L.push('Lucro bruto: ' + fmtUSD(result.grossProfit) + ' (' + fmtPct(result.grossMarginPct) + ')');
+    L.push('Custos fixos: ' + fmtUSD(result.fixedTotal));
+    L.push('Lucro líquido: ' + fmtUSD(result.netProfit) + ' (' + fmtPct(result.netMarginPct) + ')');
+    return L.join('\n');
+  }
+  function copyText(text, okMsg) {
+    function fallback() {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-1000px';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(ok ? okMsg : 'Não foi possível copiar neste dispositivo.', ok ? '' : 'warn');
+      } catch (e) { showToast('Não foi possível copiar neste dispositivo.', 'warn'); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => showToast(okMsg)).catch(fallback);
+    else fallback();
+  }
+  function openReportModal() {
+    sheet('Relatório', reportHtml(simulate()), '<button class="btn-secondary" data-action="copy-report">Copiar texto</button><div class="modal-foot-actions"><button class="btn-primary" data-action="close-modal">Fechar</button></div>');
+  }
+
+  /* ---------- Definições ---------- */
+  function openSettingsModal() {
+    const modeTxt = mode === 'cloud' ? 'Nuvem (Supabase)' : (mode === 'claude' ? 'Memória da app' : 'Só neste dispositivo');
+    const synced = mode === 'cloud' && cloud.lastSync ? cloud.lastSync.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
+    const body = '<div class="card kv-card"><div class="kv"><span>Armazenamento</span><strong>' + modeTxt + '</strong></div>' +
+      (session ? '<div class="kv"><span>Sessão</span><strong>' + esc(session.email || '') + '</strong></div>' : '') +
+      (synced ? '<div class="kv"><span>Última sincronização</span><strong>' + synced + '</strong></div>' : '') +
+      '<div class="kv"><span>Registos</span><strong>' + plural(state.movements.length, 'movimento', 'movimentos') + '</strong></div></div>' +
+      (mode === 'cloud' ? '<p class="hint">Os dados são partilhados por todos os que entram com esta conta e atualizam-se sozinhos a cada 20 segundos.</p>' : '') +
+      '<div class="form-section">Cópia de segurança</div>' +
+      '<button class="btn-secondary wide-btn" style="margin-top:0" data-action="copy-backup">Copiar cópia de segurança</button>' +
+      '<label style="margin-top:18px"><span class="label-text">Restaurar a partir de uma cópia</span><textarea id="restore-text" placeholder="Cola aqui o texto da cópia de segurança"></textarea></label>' +
+      '<button class="btn-secondary wide-btn" style="margin-top:0" data-action="restore-backup">Restaurar</button>' +
+      (mode !== 'cloud' ? '<div class="form-section">Dados</div><button class="btn-danger wide-btn" style="margin-top:0" data-action="reset-demo">Repor dados de exemplo</button>' : '') +
+      (session ? '<button class="btn-secondary wide-btn" data-action="logout">Terminar sessão</button>' : '');
+    sheet('Definições', body, '');
+  }
+  function restoreBackup() {
+    let next;
+    try {
+      const parsed = JSON.parse(getVal('restore-text').trim());
+      if (!parsed || !Array.isArray(parsed.products)) throw new Error('formato');
+      next = normalizeState(parsed);
+    } catch (e) { showToast('Cópia inválida. Confirma que colaste o texto completo.', 'warn'); return; }
+    closeModal();
+    openConfirmModal(mode === 'cloud' ? 'Restaurar esta cópia substitui os dados de toda a equipa. Continuar?' : 'Restaurar esta cópia substitui os dados atuais. Continuar?', async () => {
+      sim.overrides = {};
+      if (mode !== 'cloud') { state = next; await saveState(); render(); showToast('Cópia restaurada.'); return; }
+      byId('app-content').innerHTML = '<div class="loading-state">A restaurar a cópia...</div>';
+      try { await replaceAllCloud(next); render(); showToast('Cópia restaurada.'); }
+      catch (e) { if (e && e.auth) { onSessionLost(); return; } showToast('Não foi possível restaurar a cópia. Confirma a ligação e tenta de novo.', 'warn'); syncNow(true).then(() => render()).catch(() => render()); }
+    }, 'Restaurar');
+  }
+  async function doLogin() {
+    const email = getVal('lg-email').trim(), pass = getVal('lg-pass');
+    if (!email || !pass) { showToast('Indica o email e a palavra-passe.', 'warn'); return; }
+    try { await sbAuth('password', { email, password: pass }); }
+    catch (e) { showToast(e && e.status ? 'Email ou palavra-passe incorretos.' : 'Sem ligação. Confirma a internet e tenta de novo.', 'warn'); return; }
+    await cloudStart();
+  }
+  function doLogout() {
+    stopPolling(); session = null; lsDel(LS_SESSION);
+    cloud.catalog = null; cloud.moves = new Map(); cloud.res = new Map(); cloud.catVersion = 0; cloud.movesTs = null; cloud.resTs = null;
+    state = defaultState(); closeModal(); render();
+  }
+
+  /* ================= eventos ================= */
+  const content = byId('app-content');
+  content.addEventListener('click', e => {
+    const el = e.target.closest('[data-action]'); if (!el) return;
+    const a = el.dataset.action, id = el.dataset.id;
+    switch (a) {
+      case 'goto': goTab(el.dataset.tab); break;
+      case 'add-product': openProductModal(null); break;
+      case 'edit-product': openProductModal(id); break;
+      case 'stock-view': stockView = el.dataset.view; moveLimit = 40; render(); break;
+      case 'stock-filter': stockFilter = el.dataset.f; render(); break;
+      case 'move-filter': moveFilter = el.dataset.f; moveLimit = 40; render(); break;
+      case 'more-moves': moveLimit += 40; render(); break;
+      case 'new-move': openMoveModal(null); break;
+      case 'move-variant': openMoveModal({ pid: el.dataset.pid, vid: el.dataset.vid }); break;
+      case 'del-move': guarded(null, () => confirmDeleteMove(id)); break;
+      case 'new-res': openResModal(); break;
+      case 'deliver-res': guarded(null, () => deliverRes(id)); break;
+      case 'cancel-res': cancelRes(id); break;
+      case 'add-collection': openCollectionModal(null); break;
+      case 'edit-collection': openCollectionModal(id); break;
+      case 'add-fixed': openFixedModal(null); break;
+      case 'edit-fixed': openFixedModal(id); break;
+      case 'delete-fixed': confirmDeleteFixed(id); break;
+      case 'set-period': sim.period = el.dataset.period; sim.overrides = {}; state.lastPeriod = sim.period; lsSet(LS_PERIOD, sim.period); if (mode !== 'cloud') saveState(); render(); break;
+      case 'retry-load': cloudStart(); break;
+      case 'reset-sim': sim.overrides = {}; render(); break;
+      case 'open-report': openReportModal(); break;
+      case 'open-settings': openSettingsModal(); break;
+      case 'login': doLogin(); break;
+    }
+  });
+  content.addEventListener('input', e => {
+    const t = e.target;
+    if (t.matches('[data-sim-units]')) { sim.overrides[t.dataset.simUnits] = t.value; updateSimComputedOnly(); }
+    else if (t.id === 'custom-days-input') { sim.customDays = t.value; refreshSimUnitInputs(); updateSimComputedOnly(); }
+    else if (t.id === 'share-input') { state.wholesaleShare = Math.min(100, toNum(t.value)); updateSimComputedOnly(); }
+  });
+  content.addEventListener('change', e => {
+    if (e.target.id === 'share-input') { const v = Math.min(100, toNum(e.target.value)); e.target.value = plain(v); commit({ catalog: c => { c.wholesaleShare = v; } }); }
+  });
+  content.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'lg-pass') doLogin(); });
+  content.addEventListener('focusout', () => { if (renderPending) setTimeout(() => { if (renderPending && !typing()) { renderPending = false; render(); } }, 0); });
+  byId('app-nav').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) goTab(b.dataset.tab); });
+  byId('btn-settings').addEventListener('click', openSettingsModal);
+
+  modalRoot.addEventListener('click', e => {
+    if (e.target.matches('.modal-overlay')) { closeModal(); confirmCallback = null; return; }
+    const btn = e.target.closest('button'); if (!btn || !btn.dataset.action) return;
+    const a = btn.dataset.action;
+    switch (a) {
+      case 'close-modal': closeModal(); break;
+      case 'save-product': saveProductFromModal(); break;
+      case 'delete-product-from-modal': { const pid = editingProductId; closeModal(); if (pid) confirmDeleteProduct(pid); break; }
+      case 'save-move': guarded(btn, saveMove); break;
+      case 'save-res': saveRes(); break;
+      case 'save-collection': saveCollection(); break;
+      case 'delete-collection': { const cid = editingCollectionId; closeModal(); if (cid) confirmDeleteCollection(cid); break; }
+      case 'save-fixed': saveFixedFromModal(); break;
+      case 'delete-fixed-from-modal': { const fid = editingFixedId; closeModal(); if (fid) confirmDeleteFixed(fid); break; }
+      case 'close-confirm': closeModal(); confirmCallback = null; break;
+      case 'do-confirm': { const cb = confirmCallback; closeModal(); confirmCallback = null; if (cb) cb(); break; }
+      case 'copy-report': copyText(reportPlainText(simulate()), 'Relatório copiado.'); break;
+      case 'copy-backup': copyText(JSON.stringify(state), 'Cópia de segurança copiada.'); break;
+      case 'restore-backup': restoreBackup(); break;
+      case 'logout': doLogout(); break;
+      case 'reset-demo':
+        closeModal();
+        openConfirmModal('Queres repor os dados de exemplo? Vais perder os dados que tens agora.', () => {
+          state = defaultState(); sim.overrides = {}; saveState(); render(); showToast('Dados de exemplo repostos.');
+        }, 'Repor');
+        break;
+      case 'add-cost-row': {
+        const rows = readCostRows(); rows.push({ id: genId('c'), label: '', value: '' });
+        byId('cost-rows').innerHTML = rows.map(costRowHtml).join(''); refreshProductSummary(); break;
+      }
+      case 'remove-cost-row': {
+        let rest = readCostRows().filter(c => c.id !== btn.dataset.id);
+        if (!rest.length) rest = [{ id: genId('c'), label: '', value: '' }];
+        byId('cost-rows').innerHTML = rest.map(costRowHtml).join(''); refreshProductSummary(); break;
+      }
+    }
+  });
+  modalRoot.addEventListener('input', e => {
+    const t = e.target;
+    if (t.closest('#product-form')) refreshProductSummary();
+    if (t.id === 'mv-price') mv.priceTouched = true;
+    if (t.id === 'mv-cost') mv.costTouched = true;
+    if (t.id === 'rs-price') rs.priceTouched = true;
+    if (t.id === 'rs-qty') syncRes();
+  });
+  modalRoot.addEventListener('change', e => {
+    const t = e.target;
+    if (t.id === 'mv-prod') { fillVariantSelect('mv-var', findProduct(t.value), null); mv.priceTouched = false; mv.costTouched = false; syncMove(); }
+    else if (t.id === 'mv-type' || t.id === 'mv-var' || t.id === 'mv-ch') syncMove();
+    else if (t.id === 'rs-prod') { fillVariantSelect('rs-var', findProduct(t.value), null); rs.priceTouched = false; syncRes(); }
+    else if (t.id === 'rs-kind' || t.id === 'rs-var') syncRes();
+  });
+
+  /* ================= arranque ================= */
+  async function init() {
+    sim.period = PERIODS[lsGet(LS_PERIOD)] ? lsGet(LS_PERIOD) : 'monthly';
+    if (mode === 'cloud') {
+      const saved = lsGet(LS_SESSION);
+      if (saved) { try { session = JSON.parse(saved); } catch (e) { session = null; } }
+      state = defaultState();
+      if (!session) { render(); return; }
+      await cloudStart();
+      return;
+    }
+    await loadState();
+    if (!PERIODS[lsGet(LS_PERIOD)]) sim.period = state.lastPeriod || 'monthly';
+    render();
+  }
+  init().catch(err => {
+    byId('app-content').innerHTML = '<div class="empty-state">Ocorreu um erro ao carregar os dados. Recarrega a página.</div>';
+    if (window.console) console.error(err);
+  });
+
+  } catch (bootErr) {
+    const el = document.getElementById('app-content');
+    if (el) el.innerHTML = '<div class="empty-state">Ocorreu um erro ao iniciar o painel. Recarrega a página.</div>';
+    if (window.console) console.error(bootErr);
+  }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', nshBoot);
+else nshBoot();
+</script>
+</body>
+</html>
