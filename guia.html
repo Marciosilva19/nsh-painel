@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0B">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Guia do Painel NSH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* Layout: uma coluna estreita para ler no telemóvel; cartões só para as tarefas e os avisos, o resto é texto com ritmo. */
+  :root{
+    color-scheme:dark;
+    --ink:#0A0A0B; --panel:#141415; --panel-2:#1C1C1E; --line:#29292C; --line-soft:#202023;
+    --paper:#EDEDEF; --muted:#9A9AA2; --brand:#EE6331; --brand-dark:#C14D24; --brand-soft:rgba(238,99,49,0.14);
+    --good:#4ADE80; --amber:#FBBF24; --warn:#F87171;
+    --display:'IBM Plex Sans Condensed','Arial Narrow',-apple-system,sans-serif;
+    --body:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'IBM Plex Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--ink);}
+  body{margin:0;background:var(--ink);color:var(--paper);font-family:var(--body);font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;}
+  .wrap{max-width:640px;margin:0 auto;padding-block:28px 56px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));}
+  h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-0.005em;text-wrap:balance;margin:0;}
+  h2{font-size:26px;line-height:1.15;margin:0 0 6px;}
+  h3{font-size:19px;line-height:1.2;}
+  p{margin:0;}
+  a{color:var(--brand);}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+  .lead{color:var(--muted);font-size:15px;}
+  section{margin-top:44px;}
+  .eyebrow{font-size:11.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--brand);margin-bottom:8px;}
+  .ui{font-weight:600;color:var(--paper);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:0 6px;white-space:nowrap;}
+  b{font-weight:600;}
+
+  /* ---------- Topo ---------- */
+  .hero{display:grid;grid-template-columns:92px minmax(0,1fr);gap:18px;align-items:center;}
+  .hero img{width:92px;height:92px;display:block;}
+  .hero h1{font-size:38px;line-height:1.02;}
+  .hero h1 span{color:var(--brand);}
+  .hero .lead{margin-top:8px;}
+  .access{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:10px;}
+  .access-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .url{font-family:var(--mono);font-size:13.5px;color:var(--paper);background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;flex:1 1 220px;min-width:0;overflow-wrap:anywhere;user-select:all;}
+  .btn{font-family:var(--body);font-size:14px;font-weight:600;border-radius:10px;border:1px solid transparent;padding:10px 14px;min-height:42px;cursor:pointer;}
+  .btn-primary{background:var(--brand);color:#fff;}
+  .btn-secondary{background:var(--panel-2);color:var(--paper);border-color:var(--line);}
+  .access p{font-size:13.5px;color:var(--muted);}
+
+  /* ---------- Passos ---------- */
+  .steps{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px;counter-reset:s;}
+  .steps li{counter-increment:s;display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;align-items:start;}
+  .steps li::before{content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--brand-soft);color:var(--brand);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;font-family:var(--display);}
+  .steps.small li{grid-template-columns:24px minmax(0,1fr);gap:10px;font-size:14.5px;}
+  .steps.small li::before{width:24px;height:24px;font-size:12.5px;}
+
+  /* ---------- Barra de separadores ---------- */
+  .tabbar{margin-top:16px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 2px 10px;font-size:11px;font-weight:500;color:var(--muted);position:relative;}
+  .tab svg{width:22px;height:22px;}
+  .tab.on{color:var(--paper);}
+  .tab.on svg{color:var(--brand);}
+  .tab.on::before{content:'';position:absolute;top:0;left:28%;right:28%;height:2px;background:var(--brand);border-radius:0 0 2px 2px;}
+  .tabmap{margin-top:14px;display:grid;gap:0;}
+  .tabmap div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid var(--line-soft);font-size:14.5px;}
+  .tabmap div:last-child{border-bottom:none;}
+  .tabmap dt,.tabmap strong{font-weight:600;}
+  .tabmap span{color:var(--muted);}
+
+  /* ---------- Tarefas ---------- */
+  .tasks{display:grid;gap:12px;margin-top:16px;}
+  .task{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;}
+  .task-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .task-tag{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap;}
+  .task .when{color:var(--muted);font-size:14px;}
+  .note{margin-top:12px;font-size:13.5px;color:var(--muted);border-left:3px solid var(--amber);padding:2px 0 2px 10px;}
+  .note.brand{border-left-color:var(--brand);}
+
+  /* ---------- Exemplo de stock ---------- */
+  .stock{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;}
+  .stock-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .stock-title strong{font-size:15px;}
+  .stock-title span{font-size:12px;color:var(--muted);}
+  .vg{display:grid;grid-template-columns:minmax(0,1fr) 54px 44px 52px;gap:6px;align-items:center;padding:10px 6px;border-top:1px solid var(--line-soft);font-variant-numeric:tabular-nums;font-size:14px;}
+  .vg > span{text-align:right;}
+  .vg > span:first-child{text-align:left;display:flex;align-items:center;gap:8px;min-width:0;}
+  .vg.head{border-top:none;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding-top:0;}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:var(--good);}
+  .dot.none{background:var(--line);} .dot.amber{background:var(--amber);} .dot.red{background:var(--warn);}
+  .amber-t{color:var(--amber);font-weight:600;} .red-t{color:var(--warn);font-weight:600;} .muted{color:var(--muted);}
+  .legend{margin-top:14px;display:grid;gap:8px;font-size:14px;}
+  .legend div{display:flex;gap:10px;align-items:flex-start;}
+  .legend .dot{margin-top:7px;}
+  .formula{margin-top:14px;font-family:var(--mono);font-size:13px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--paper);overflow-x:auto;}
+
+  /* ---------- Regra de produção ---------- */
+  .rule{margin-top:16px;display:grid;gap:8px;}
+  .rule div{display:grid;grid-template-columns:86px minmax(0,1fr);gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;}
+  .rule b{font-family:var(--display);font-size:18px;}
+  .bar{height:8px;border-radius:6px;background:var(--panel-2);overflow:hidden;margin-top:6px;}
+  .bar i{display:block;height:100%;background:repeating-linear-gradient(135deg,var(--brand) 0 5px,var(--brand-dark) 5px 10px);}
+
+  /* ---------- Regras e ajuda ---------- */
+  .rules{margin:16px 0 0;padding:0;list-style:none;display:grid;gap:10px;}
+  .rules li{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14.5px;}
+  .faq{margin-top:12px;display:grid;gap:8px;}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 14px;}
+  summary{cursor:pointer;padding:13px 0;font-weight:600;font-size:14.5px;list-style:none;display:flex;justify-content:space-between;gap:12px;}
+  summary::-webkit-details-marker{display:none;}
+  summary::after{content:'+';color:var(--brand);font-weight:700;flex:0 0 auto;}
+  details[open] summary::after{content:'−';}
+  details p{padding:0 0 14px;color:var(--muted);font-size:14px;}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+
+  @media (max-width:380px){ .hero{grid-template-columns:72px minmax(0,1fr);} .hero img{width:72px;height:72px;} .hero h1{font-size:32px;} .tabmap div{grid-template-columns:84px minmax(0,1fr);} }
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important;}}
+</style>
+
+</head>
+<body>
+<main class="wrap">
+  <a href="./" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:18px;font-weight:600;font-size:14px;color:var(--brand);text-decoration:none;min-height:40px">‹ Voltar à app</a>
+  <header class="hero">
+    <img src="data:image/png;base64,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" alt="Logótipo No Safety Hood">
+    <div>
+      <h1>Guia do <span>Painel NSH</span></h1>
+      <p class="lead">Para a equipa da No Safety Hood: como registar vendas, entradas de mercadoria e reservas no telemóvel.</p>
+    </div>
+  </header>
+
+  <div class="access">
+    <div class="access-row">
+      <span class="url" id="app-url">https://marciosilva19.github.io/nsh-painel/</span>
+      <button class="btn btn-secondary" id="copy-url" type="button">Copiar link</button>
+    </div>
+    <p>Entra com o email e a palavra-passe da equipa que o Márcio te enviou. A conta é partilhada: não a dês a ninguém de fora.</p>
+  </div>
+
+  <section id="instalar">
+    <div class="eyebrow">Antes de começar</div>
+    <h2>Instalar no iPhone</h2>
+    <p class="lead">Fica no ecrã principal com o ícone NSH e abre como uma app.</p>
+    <ol class="steps">
+      <li><div>Abre o link no <b>Safari</b>. Noutros navegadores a opção de instalar não aparece.</div></li>
+      <li><div>Entra com a conta da equipa. A sessão fica guardada: não precisas de voltar a entrar.</div></li>
+      <li><div>Toca em <span class="ui">Partilhar</span> e depois em <span class="ui">Adicionar ao ecrã principal</span>.</div></li>
+    </ol>
+  </section>
+
+  <section id="separadores">
+    <div class="eyebrow">Mapa</div>
+    <h2>Os 5 separadores</h2>
+    <p class="lead">Estão na barra de baixo. O que vais usar todos os dias é o <b>Stock</b>.</p>
+    <div class="tabbar" aria-hidden="true">
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" transform="rotate(45 12 12)"/></svg>Painel</div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Produtos</div>
+      <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7.5L12 3l9 4.5L12 12z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5L12 21l9-4.5"/></svg>Stock</div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5L19 17H5Z"/></svg>Simulação</div>
+      <div class="tab"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>Mais</div>
+    </div>
+    <div class="tabmap">
+      <div><strong>Painel</strong><span>Resumo: lucro estimado, stock agora, vendas dos últimos 30 dias e alertas automáticos.</span></div>
+      <div><strong>Produtos</strong><span>Preços de loja e revenda, custos de cada peça, tamanhos e cores.</span></div>
+      <div><strong>Stock</strong><span>Quantas peças há de cada variante, o histórico de movimentos e as reservas.</span></div>
+      <div><strong>Simulação</strong><span>Quanto podemos faturar e lucrar numa semana, mês, trimestre ou ano.</span></div>
+      <div><strong>Mais</strong><span>Coleções, custos fixos e definições (moeda, cópia de segurança, sessão).</span></div>
+    </div>
+  </section>
+
+  <section id="dia-a-dia">
+    <div class="eyebrow">No dia a dia</div>
+    <h2>O que fazer em cada situação</h2>
+    <p class="lead">Tudo começa no separador <b>Stock</b>, no botão <span class="ui">Registar movimento</span>. Dica: tocar numa linha da tabela abre o registo já com esse produto e variante escolhidos.</p>
+
+    <div class="tasks">
+      <article class="task">
+        <div class="task-head"><h3>Vendi uma peça</h3><span class="task-tag">Venda</span></div>
+        <p class="when">Na loja, por Instagram/WhatsApp, no site ou a um parceiro de revenda.</p>
+        <ol class="steps small">
+          <li><div>Escolhe o tipo <span class="ui">Venda</span>, o produto e a variante.</div></li>
+          <li><div>Indica a quantidade e o <b>canal de venda</b>. O preço aparece sozinho: preço de loja, ou de revenda se o canal for <span class="ui">Revenda</span>. Corrige se fizeste desconto.</div></li>
+          <li><div>Toca em <span class="ui">Registar</span>.</div></li>
+        </ol>
+        <p class="note">Se a peça estiver reservada para outra pessoa, a app não deixa vender. Para entregar uma reserva usa <span class="ui">Reservas</span> → <span class="ui">Entregar</span>.</p>
+      </article>
+
+      <article class="task">
+        <div class="task-head"><h3>Chegou mercadoria</h3><span class="task-tag">Entrada de stock</span></div>
+        <p class="when">Quando recebes peças de uma encomenda, como os hoodies do Inverno 2026.</p>
+        <ol class="steps small">
+          <li><div>Escolhe <span class="ui">Entrada de stock</span>, o produto e a variante (tamanho e cor).</div></li>
+          <li><div>Indica quantas peças chegaram dessa variante e o <b>custo por peça neste lote</b>, já com taxas e envio.</div></li>
+          <li><div>Repete para cada tamanho e cor que chegou.</div></li>
+        </ol>
+        <p class="note brand">O custo do lote alimenta o separador Coleções: é assim que sabemos quanto investimos e quanto já recuperámos.</p>
+      </article>
+
+      <article class="task">
+        <div class="task-head"><h3>Pré-encomenda ou lote de revenda</h3><span class="task-tag">Reserva</span></div>
+        <p class="when">Quando alguém pede peças que só vai receber mais tarde, ou um Retail Partner fecha uma encomenda.</p>
+        <ol class="steps small">
+          <li><div>Toca em <span class="ui">Nova reserva</span>. Escolhe <span class="ui">Pré-encomenda</span> ou <span class="ui">Revenda</span>, escreve o nome do cliente ou parceiro, o produto, a variante e a quantidade.</div></li>
+          <li><div>Podes reservar mesmo sem stock: a reserva fica marcada <b>Por produzir</b> e o Painel avisa quantas peças faltam.</div></li>
+          <li><div>Quando entregares, abre <span class="ui">Reservas</span> e toca em <span class="ui">Entregar</span>. A venda fica registada sozinha.</div></li>
+        </ol>
+        <p class="note">Se o cliente desistir, toca em <span class="ui">Cancelar</span>: as peças voltam a ficar disponíveis.</p>
+      </article>
+
+      <article class="task">
+        <div class="task-head"><h3>Devolução, oferta ou defeito</h3><span class="task-tag">Outros</span></div>
+        <ol class="steps small">
+          <li><div><span class="ui">Devolução</span>: a peça volta ao stock. Indica o valor reembolsado por peça (0 se foi troca).</div></li>
+          <li><div><span class="ui">Amostra / oferta</span>: peças dadas a influencers, fotos ou brindes. Saem do stock sem receita.</div></li>
+          <li><div><span class="ui">Perda / defeito</span>: peças estragadas ou perdidas. Escreve o motivo na nota.</div></li>
+        </ol>
+      </article>
+
+      <article class="task">
+        <div class="task-head"><h3>Contar o stock</h3><span class="task-tag">Ajuste de contagem</span></div>
+        <p class="when">Quando contas as peças à mão e o número não bate certo com a app.</p>
+        <ol class="steps small">
+          <li><div>Escolhe <span class="ui">Ajuste de contagem</span>, o produto e a variante. A app mostra o que tem no sistema.</div></li>
+          <li><div>Escreve <b>quantas peças contaste</b>. A diferença é registada sozinha.</div></li>
+        </ol>
+      </article>
+
+      <article class="task">
+        <div class="task-head"><h3>Enganei-me num registo</h3><span class="task-tag">Corrigir</span></div>
+        <ol class="steps small">
+          <li><div>Abre <span class="ui">Stock</span> → <span class="ui">Movimentos</span> e toca no registo errado.</div></li>
+          <li><div>Confirma <span class="ui">Apagar</span> e regista outra vez com os dados certos.</div></li>
+        </ol>
+        <p class="note">Se o registo apagado era a entrega de uma reserva, a reserva volta a ficar em aberto. Se a app não deixar apagar porque o stock ficaria negativo, faz antes um <span class="ui">Ajuste de contagem</span>.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="ler-stock">
+    <div class="eyebrow">Ler os números</div>
+    <h2>Como ler o stock</h2>
+    <p class="lead">Cada produto tem uma linha por variante. Exemplo ilustrativo:</p>
+    <div class="stock" aria-label="Exemplo de tabela de stock">
+      <div class="stock-title"><strong>Hoodie NSH</strong><span>exemplo</span></div>
+      <div class="vg head"><span>Variante</span><span>Físico</span><span>Res.</span><span>Disp.</span></div>
+      <div class="vg"><span><i class="dot"></i>M · Preto</span><span>12</span><span class="muted">2</span><span>10</span></div>
+      <div class="vg"><span><i class="dot amber"></i>L · Preto</span><span>3</span><span class="muted">1</span><span class="amber-t">2</span></div>
+      <div class="vg"><span><i class="dot red"></i>S · Preto</span><span>1</span><span class="muted">3</span><span class="red-t">−2</span></div>
+    </div>
+    <div class="formula">Disponível = Físico − Reservado</div>
+    <div class="legend">
+      <div><i class="dot none"></i><span><b>Físico</b>: peças que existem mesmo no armazém.</span></div>
+      <div><i class="dot none"></i><span><b>Reservado</b>: peças prometidas a clientes ou parceiros, ainda por entregar.</span></div>
+      <div><i class="dot none"></i><span><b>Disponível</b>: o que ainda podes vender a quem chegar.</span></div>
+      <div><i class="dot amber"></i><span><b>Verde</b> está bem; <b>âmbar</b> é stock baixo: o disponível chegou ao número de alerta definido no produto.</span></div>
+      <div><i class="dot red"></i><span><b>Vermelho</b>: esgotado. Um número negativo quer dizer peças reservadas que ainda têm de ser produzidas.</span></div>
+    </div>
+  </section>
+
+  <section id="produtos">
+    <div class="eyebrow">Produtos</div>
+    <h2>Preços, custos e variantes</h2>
+    <div class="tabmap">
+      <div><strong>Preço de venda</strong><span>O preço ao cliente final (RRP), igual na loja, no Instagram e no site.</span></div>
+      <div><strong>Preço de revenda</strong><span>O preço wholesale para os Retail Partners.</span></div>
+      <div><strong>Cadeia de custos</strong><span>Tudo o que custa uma peça: produção, moldes, estampagem, taxas, envio. A app calcula a margem e o markup sozinha.</span></div>
+      <div><strong>Variantes</strong><span>Tamanhos e cores, separados por vírgulas. Cada combinação tem stock próprio.</span></div>
+      <div><strong>Alerta de stock</strong><span>Quando o disponível chega a este número, a variante fica âmbar.</span></div>
+    </div>
+    <p class="note brand">Produtos, preços e custos mudam as contas de toda a equipa. Se não é tarefa tua, fala com o Márcio antes de alterar.</p>
+  </section>
+
+  <section id="contas">
+    <div class="eyebrow">Decisões</div>
+    <h2>Painel, Simulação e Coleções</h2>
+    <div class="tabmap">
+      <div><strong>Painel</strong><span>"Estimado" vem das vendas mensais previstas em cada produto. "Vendas registadas" são as vendas reais dos últimos 30 dias.</span></div>
+      <div><strong>Simulação</strong><span>Escolhe o período e ajusta as peças. <span class="ui">Peso da revenda</span> é a parte vendida a parceiros. <span class="ui">Ver relatório completo</span> → <span class="ui">Copiar texto</span> para enviar no grupo.</span></div>
+      <div><strong>Coleções</strong><span>Em <span class="ui">Mais</span>. Mostra o sell-through (peças vendidas ÷ peças recebidas), quanto investimos e quanto já recuperámos.</span></div>
+    </div>
+    <h3 style="margin-top:24px">Regra de produção da NSH</h3>
+    <p class="lead" style="margin-top:4px">Do plano de caixa NSH-PLANO-002. Vê o sell-through da coleção antes de encomendar mais.</p>
+    <div class="rule">
+      <div><b>≥ 80%</b><span>vendido: preparar nova produção.<span class="bar" style="display:block"><i style="width:85%"></i></span></span></div>
+      <div><b>60–79%</b><span>vendido: manter as vendas, ainda sem encomendar.<span class="bar" style="display:block"><i style="width:70%"></i></span></span></div>
+      <div><b>&lt; 60%</b><span>vendido: não aumentar o stock.<span class="bar" style="display:block"><i style="width:45%"></i></span></span></div>
+    </div>
+  </section>
+
+  <section id="regras">
+    <div class="eyebrow">Combinado</div>
+    <h2>Regras da equipa</h2>
+    <ul class="rules">
+      <li><b>Regista no momento.</b> Uma venda que fica para depois é stock errado para todos.</li>
+      <li><b>Peças reservadas não se vendem.</b> Entrega a reserva no separador Reservas.</li>
+      <li><b>Se aparecer "Erro ao guardar" no topo</b>, a alteração não ficou gravada. Confirma a internet e regista outra vez.</li>
+      <li><b>Restaurar uma cópia de segurança</b> substitui os dados de toda a equipa. Só o Márcio faz isso.</li>
+      <li><b>A moeda é escolha tua.</b> Em <span class="ui">Mais</span> → <span class="ui">Definições</span> → <span class="ui">Moeda</span> vês tudo em euros ou em dólares. Os valores escrevem-se sempre em euros.</li>
+    </ul>
+  </section>
+
+  <section id="ajuda">
+    <div class="eyebrow">Ajuda</div>
+    <h2>Se algo não funcionar</h2>
+    <div class="faq">
+      <details><summary>"Email ou palavra-passe incorretos"</summary><p>Confirma que estás a usar a conta da equipa, com as letras maiúsculas certas. Se continuar, pede os dados ao Márcio.</p></details>
+      <details><summary>Aparece "Sem ligação"</summary><p>Não há internet ou o servidor não respondeu. Toca em <span class="ui">Tentar de novo</span>. Os dados ficam guardados no servidor, por isso nada se perde.</p></details>
+      <details><summary>Não vejo o que um colega acabou de registar</summary><p>A app atualiza-se sozinha a cada 20 segundos e sempre que a voltas a abrir. Se tiveres pressa, fecha e abre a app.</p></details>
+      <details><summary>"Só tens X peças em stock físico desta variante"</summary><p>Estás a tentar vender, oferecer ou dar como perdidas mais peças do que existem. Confirma a variante ou faz primeiro a entrada de stock.</p></details>
+      <details><summary>O ícone no ecrã principal é o antigo</summary><p>O iPhone guarda o ícone quando se adiciona a app. Apaga o atalho e volta a adicioná-lo pelo Safari.</p></details>
+    </div>
+  </section>
+
+  <footer>
+    <span>No Safety Hood · Guia do Painel NSH</span>
+    <a href="./">Voltar à app</a>
+  </footer>
+</main>
+
+<script>
+  (function () {
+    var btn = document.getElementById('copy-url'), el = document.getElementById('app-url');
+    function selectText() { try { var r = document.createRange(); r.selectNodeContents(el); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+    btn.addEventListener('click', function () {
+      var text = el.textContent.trim();
+      var done = function () { btn.textContent = 'Link copiado'; setTimeout(function () { btn.textContent = 'Copiar link'; }, 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { selectText(); btn.textContent = 'Seleciona e copia'; });
+      } else { selectText(); btn.textContent = 'Seleciona e copia'; }
+    });
+  })();
+</script>
+
+</body>
+</html>

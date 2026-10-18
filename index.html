@@ -1220,7 +1220,8 @@ function nshBoot() {
     return '<div class="stack">' +
       '<button class="card menu-row" data-action="goto" data-tab="collections"><div><strong>Coleções</strong><span>' + plural(nc, 'coleção', 'coleções') + ' · sell-through e retorno de cada drop</span></div><i>›</i></button>' +
       '<button class="card menu-row" data-action="goto" data-tab="fixed"><div><strong>Custos fixos</strong><span>' + fmtUSD(totalFixedMonthly()) + ' por mês</span></div><i>›</i></button>' +
-      '<button class="card menu-row" data-action="open-settings"><div><strong>Definições e cópia de segurança</strong><span>Armazenamento, restaurar dados, sessão</span></div><i>›</i></button></div>';
+      '<button class="card menu-row" data-action="open-settings"><div><strong>Definições e cópia de segurança</strong><span>Armazenamento, restaurar dados, sessão</span></div><i>›</i></button>' +
+      '<a class="card menu-row" href="guia.html" style="text-decoration:none"><div><strong>Guia da app</strong><span>Como registar vendas, entradas e reservas</span></div><i>›</i></a></div>';
   }
   const backBtn = () => '<button class="back-btn" data-action="goto" data-tab="more">‹ Mais</button>';
 
