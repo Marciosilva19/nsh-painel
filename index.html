@@ -411,10 +411,33 @@ function nshBoot() {
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+  /* Valores guardados em euros; cada pessoa pode ver a app em EUR ou USD. */
+  const LS_CUR = 'nsh_pref_cur', LS_FX = 'nsh_fx';
+  let viewCur = lsGet(LS_CUR) === 'USD' ? 'USD' : 'EUR';
+  let fx = { rate: 1.12, date: null, fetched: 0 };
+  try { const c = JSON.parse(lsGet(LS_FX) || 'null'); if (c && c.rate > 0 && c.rate < 5) fx = c; } catch (e) {}
   function fmtUSD(n) {
     if (!isFinite(n)) n = 0;
-    const neg = n < -0.004; n = Math.abs(n);
-    return (neg ? '−' : '') + '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let v = viewCur === 'USD' ? n * fx.rate : n;
+    const neg = v < -0.004; v = Math.abs(v);
+    if (viewCur === 'USD') return (neg ? '−' : '') + '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (neg ? '−' : '') + v.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+  const fxText = () => '1 € = ' + fx.rate.toLocaleString('pt-PT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + ' $' + (fx.date ? ' (BCE, ' + fmtDate(fx.date) + ')' : ' (valor de referência)');
+  async function loadFx() {
+    if (fx.fetched && Date.now() - fx.fetched < 6 * 3600 * 1000) return;
+    const get = async (u, pick) => {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 5000);
+      try { const r = await fetch(u, { signal: ctl.signal }); if (!r.ok) return null; return pick(await r.json()); }
+      catch (e) { return null; } finally { clearTimeout(t); }
+    };
+    let res = await get('https://api.frankfurter.dev/v2/rate/eur/usd', j => ({ rate: Number(j.rate), date: j.date }));
+    if (!res || !(res.rate > 0)) res = await get('https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD', j => ({ rate: Number(j.rates && j.rates.USD), date: j.date }));
+    if (res && res.rate > 0 && res.rate < 5) {
+      fx = { rate: res.rate, date: res.date || null, fetched: Date.now() };
+      lsSet(LS_FX, JSON.stringify(fx));
+      if (viewCur === 'USD') scheduleRender();
+    }
   }
   function fmtPct(n) {
     if (!isFinite(n)) n = 0;
@@ -958,8 +981,9 @@ function nshBoot() {
     }));
     const avail = phys - res;
     const n = state.products.length;
-    const avgMargin = n ? state.products.reduce((s, p) => s + marginPct(p), 0) / n : 0;
-    const avgMarkup = n ? state.products.reduce((s, p) => s + markupPct(p), 0) / n : 0;
+    const costed = state.products.filter(p => unitCost(p) > 0), nc = costed.length;
+    const avgMargin = nc ? costed.reduce((s, p) => s + marginPct(p), 0) / nc : 0;
+    const avgMarkup = nc ? costed.reduce((s, p) => s + markupPct(p), 0) / nc : 0;
 
     const gp = Math.max(0, Math.min(100, E.netPct)), glen = 251.3;
     const gauge = '<div class="card">' + cardTitle('Margem líquida estimada') +
@@ -994,6 +1018,8 @@ function nshBoot() {
     const profitBars = rows.map(x => barRow(x.p.name, x.profit, maxP, x.profit < 0 ? 'loss' : 'profit')).join('');
 
     const ins = [];
+    const noCost = state.products.filter(p => unitCost(p) <= 0);
+    if (noCost.length) ins.push(['warn', 'Sem custo preenchido: <b>' + noCost.map(p => esc(p.name)).join(', ') + '</b>. Até preencheres a cadeia de custos, a margem e o lucro destes produtos aparecem acima do real.']);
     if (rows.length && E.gross > 0 && rows[0].profit > 0) ins.push(['', '<b>' + esc(rows[0].p.name) + '</b> gera ' + fmtPct((rows[0].profit / E.gross) * 100) + ' do lucro bruto mensal estimado.']);
     if (shortUnits > 0) ins.push(['bad', 'Tens <b>' + plural(shortUnits, 'peça reservada', 'peças reservadas') + ' sem stock</b>: precisam de ser produzidas ou repostas.']);
     if (outNames.length) ins.push(['bad', 'Sem stock disponível: <b>' + outNames.map(esc).join(', ') + '</b>' + (outN > outNames.length ? ' e mais ' + (outN - outNames.length) : '') + '.']);
@@ -1001,13 +1027,13 @@ function nshBoot() {
     state.products.forEach(p => { if (toNum(p.wsPrice) > 0 && (!worstWs || wsMarginPct(p) < wsMarginPct(worstWs))) worstWs = p; });
     if (worstWs && wsMarginPct(worstWs) < 15) ins.push(['warn', 'A margem de revenda de <b>' + esc(worstWs.name) + '</b> é de ' + fmtPct(wsMarginPct(worstWs)) + '. Confirma o preço de revenda.']);
     let worst = null;
-    state.products.forEach(p => { if (!worst || marginPct(p) < marginPct(worst)) worst = p; });
-    if (worst && n > 1) { const wm = marginPct(worst); ins.push([wm < 0 ? 'bad' : (wm < 30 ? 'warn' : ''), 'Menor margem na loja: <b>' + esc(worst.name) + '</b> com ' + fmtPct(wm) + (wm < 30 ? '. Vale a pena rever o preço ou os custos.' : '.')]); }
+    costed.forEach(p => { if (!worst || marginPct(p) < marginPct(worst)) worst = p; });
+    if (worst && nc > 1) { const wm = marginPct(worst); ins.push([wm < 0 ? 'bad' : (wm < 30 ? 'warn' : ''), 'Menor margem na loja: <b>' + esc(worst.name) + '</b> com ' + fmtPct(wm) + (wm < 30 ? '. Vale a pena rever o preço ou os custos.' : '.')]); }
     if (E.breakEven !== null) ins.push([E.units >= E.breakEven ? '' : 'bad', 'Para cobrir os custos fixos precisas de cerca de <b>' + plural(Math.ceil(E.breakEven), 'peça', 'peças') + '/mês</b>; a tua estimativa atual é de ' + Math.round(E.units) + '.']);
     const insights = ins.length ? '<div class="card">' + cardTitle('Análise automática') + ins.slice(0, 5).map(i => '<div class="insight ' + i[0] + '"><i></i><div>' + i[1] + '</div></div>').join('') + '</div>' : '';
 
     return '<div class="stack">' +
-      '<div class="card hero"><div class="hero-main"><span class="hero-brand">NO SAFETY HOOD · USD</span>' +
+      '<div class="card hero"><div class="hero-main"><span class="hero-brand">NO SAFETY HOOD · ' + viewCur + '</span>' +
         '<div class="hero-label">Lucro líquido estimado por mês</div>' +
         '<div class="hero-big ' + (E.net < 0 ? 'warn-text' : '') + '">' + fmtUSD(E.net) + '</div>' +
         '<span class="pill-badge ' + (E.net < 0 ? 'neg' : '') + '">' + fmtPct(E.netPct) + ' de margem líquida</span></div>' +
@@ -1319,7 +1345,7 @@ function nshBoot() {
       field('Nome do produto', '<input type="text" id="f-name" value="' + (p ? esc(p.name) : '') + '" placeholder="Ex: Hoodie NSH Classic">') +
       '<div class="field-row">' + field('Código / SKU', '<input type="text" id="f-sku" value="' + (p ? esc(p.sku || '') : '') + '" placeholder="Opcional" autocapitalize="characters">') +
         field('Coleção', selectWrap('f-col', colOpts)) + '</div>' +
-      '<div class="form-section">Preços por canal (USD)</div>' +
+      '<div class="form-section">Preços por canal (EUR)</div>' +
       '<div class="field-row">' + field('Preço de venda', '<input type="text" id="f-price" inputmode="decimal" value="' + (p ? esc(plain(toNum(p.price))) : '') + '" placeholder="0.00">') +
         field('Preço de revenda', '<input type="text" id="f-ws" inputmode="decimal" value="' + (p && toNum(p.wsPrice) ? esc(plain(toNum(p.wsPrice))) : '') + '" placeholder="0.00">') + '</div>' +
       '<div class="field-row">' + field('Vendas por mês', '<input type="text" id="f-monthly" inputmode="decimal" value="' + (p ? esc(plain(toNum(p.monthlySales))) : '') + '" placeholder="Estimativa">') +
@@ -1389,8 +1415,8 @@ function nshBoot() {
       '<div class="field-row">' + field('Quantidade', '<input type="text" id="mv-qty" inputmode="numeric" pattern="[0-9]*" value="1">', 'mv-qty-wrap') +
         field('Data', '<input type="date" id="mv-date" value="' + todayISO() + '" max="' + todayISO() + '">') + '</div>' +
       field('Canal de venda', selectWrap('mv-ch', opts(CHANNELS, 'loja')), 'mv-ch-wrap') +
-      field('Preço por peça (USD)', '<input type="text" id="mv-price" inputmode="decimal">', 'mv-price-wrap') +
-      field('Custo por peça neste lote (USD)', '<input type="text" id="mv-cost" inputmode="decimal">', 'mv-cost-wrap') +
+      field('Preço por peça (EUR)', '<input type="text" id="mv-price" inputmode="decimal">', 'mv-price-wrap') +
+      field('Custo por peça neste lote (EUR)', '<input type="text" id="mv-cost" inputmode="decimal">', 'mv-cost-wrap') +
       field('Nota (opcional)', '<input type="text" id="mv-note" maxlength="120" placeholder="Ex: cliente, motivo, n.º de encomenda">');
     sheet('Registar movimento', body, '<div class="modal-foot-actions"><button class="btn-secondary" data-action="close-modal">Cancelar</button><button class="btn-primary" data-action="save-move">Registar</button></div>');
     fillVariantSelect('mv-var', p, vsel);
@@ -1403,7 +1429,7 @@ function nshBoot() {
     byId('mv-price-wrap').hidden = !(type === 'sale' || type === 'return');
     byId('mv-cost-wrap').hidden = type !== 'in';
     setText('mv-qty-wrap-label', type === 'adjust' ? 'Contagem real (peças)' : 'Quantidade');
-    setText('mv-price-wrap-label', type === 'return' ? 'Valor reembolsado por peça (USD)' : 'Preço por peça (USD)');
+    setText('mv-price-wrap-label', type === 'return' ? 'Valor reembolsado por peça (EUR)' : 'Preço por peça (EUR)');
     if (!mv.priceTouched) byId('mv-price').value = plain(priceFor(p, type === 'sale' ? getVal('mv-ch') : 'loja'));
     if (!mv.costTouched) byId('mv-cost').value = plain(unitCost(p));
     const q = byId('mv-qty');
@@ -1477,7 +1503,7 @@ function nshBoot() {
       '<div class="field-row">' + field('Tipo', selectWrap('rs-kind', opts(RES_KINDS, 'preenc'))) + field('Data', '<input type="date" id="rs-date" value="' + todayISO() + '" max="' + todayISO() + '">') + '</div>' +
       field('Cliente ou parceiro', '<input type="text" id="rs-customer" maxlength="80" placeholder="Ex: nome do cliente ou Retail Partner">') +
       '<div class="field-row">' + field('Produto', selectWrap('rs-prod', productOptions(p.id))) + field('Variante', selectWrap('rs-var', '')) + '</div>' +
-      '<div class="field-row">' + field('Quantidade', '<input type="text" id="rs-qty" inputmode="numeric" pattern="[0-9]*" value="1">') + field('Preço por peça (USD)', '<input type="text" id="rs-price" inputmode="decimal">') + '</div>' +
+      '<div class="field-row">' + field('Quantidade', '<input type="text" id="rs-qty" inputmode="numeric" pattern="[0-9]*" value="1">') + field('Preço por peça (EUR)', '<input type="text" id="rs-price" inputmode="decimal">') + '</div>' +
       '<div class="info-box" id="rs-info"></div>' +
       field('Nota (opcional)', '<input type="text" id="rs-note" maxlength="120" placeholder="Ex: sinal pago, prazo de entrega">');
     sheet('Nova reserva', body, '<div class="modal-foot-actions"><button class="btn-secondary" data-action="close-modal">Cancelar</button><button class="btn-primary" data-action="save-res">Criar reserva</button></div>');
@@ -1557,7 +1583,7 @@ function nshBoot() {
     const fc = id ? state.fixedCosts.find(x => x.id === id) : null;
     const per = fc ? fc.period : 'monthly';
     const body = field('Descrição', '<input type="text" id="ff-label" value="' + (fc ? esc(fc.label) : '') + '" placeholder="Ex: Aluguer do estúdio">') +
-      '<div class="field-row">' + field('Valor (USD)', '<input type="text" id="ff-value" inputmode="decimal" value="' + (fc ? esc(plain(toNum(fc.value))) : '') + '" placeholder="0.00">') +
+      '<div class="field-row">' + field('Valor (EUR)', '<input type="text" id="ff-value" inputmode="decimal" value="' + (fc ? esc(plain(toNum(fc.value))) : '') + '" placeholder="0.00">') +
       field('Periodicidade', selectWrap('ff-period', opts({ monthly: 'Mensal', weekly: 'Semanal', annual: 'Anual' }, per))) + '</div>';
     sheet(fc ? 'Editar custo fixo' : 'Novo custo fixo', body, footSave('save-fixed', fc ? 'delete-fixed-from-modal' : ''), true);
   }
@@ -1590,7 +1616,7 @@ function nshBoot() {
     }).join('');
     const fixedRows = state.fixedCosts.map(fc => '<tr><td colspan="2">' + esc(fc.label) + ' <span style="color:#888">(' + periodLabelPt(fc.period) + ')</span></td><td class="num">' + fmtUSD(fixedCostMonthly(fc) * periodFactor()) + '</td></tr>').join('');
     return '<div class="report-sheet-wrap"><h1>NO SAFETY HOOD</h1>' +
-      '<p class="report-meta">Simulação de receita e lucro · Período: ' + esc(currentPeriodLabel()) + ' · Revenda: ' + fmtPct(shareFrac() * 100) + ' das peças · Gerado em ' + dateStr + ' · Valores em USD</p>' +
+      '<p class="report-meta">Simulação de receita e lucro · Período: ' + esc(currentPeriodLabel()) + ' · Revenda: ' + fmtPct(shareFrac() * 100) + ' das peças · Gerado em ' + dateStr + ' · Valores em ' + (viewCur === 'USD' ? 'USD (' + fxText() + ')' : 'EUR') + '</p>' +
       '<div class="report-section-title">Produtos</div><table class="report-table"><tbody>' + (prodRows || '<tr><td colspan="3">Sem produtos.</td></tr>') + '</tbody></table>' +
       '<div class="report-section-title">Custos fixos no período</div><table class="report-table"><tbody>' + (fixedRows || '<tr><td colspan="3">Sem custos fixos.</td></tr>') + '</tbody></table>' +
       '<div class="report-section-title">Resultado</div><table class="report-table"><tbody>' +
@@ -1606,7 +1632,7 @@ function nshBoot() {
   function reportPlainText(result) {
     const L = [];
     L.push('NO SAFETY HOOD — Simulação de receita e lucro');
-    L.push('Período: ' + currentPeriodLabel() + ' · Revenda: ' + fmtPct(shareFrac() * 100) + ' das peças · Valores em USD');
+    L.push('Período: ' + currentPeriodLabel() + ' · Revenda: ' + fmtPct(shareFrac() * 100) + ' das peças · Valores em ' + (viewCur === 'USD' ? 'USD (' + fxText() + ')' : 'EUR'));
     L.push('Gerado em ' + new Date().toLocaleDateString('pt-PT'));
     L.push(''); L.push('PRODUTOS');
     result.rows.forEach(r => {
@@ -1651,6 +1677,10 @@ function nshBoot() {
       (session ? '<div class="kv"><span>Sessão</span><strong>' + esc(session.email || '') + '</strong></div>' : '') +
       (synced ? '<div class="kv"><span>Última sincronização</span><strong>' + synced + '</strong></div>' : '') +
       '<div class="kv"><span>Registos</span><strong>' + plural(state.movements.length, 'movimento', 'movimentos') + '</strong></div></div>' +
+      '<div class="form-section">Moeda</div>' +
+      '<div class="seg" style="grid-template-columns:1fr 1fr;margin-bottom:0"><button class="seg-btn ' + (viewCur === 'EUR' ? 'on' : '') + '" data-action="set-cur" data-cur="EUR">Euro (€)</button>' +
+      '<button class="seg-btn ' + (viewCur === 'USD' ? 'on' : '') + '" data-action="set-cur" data-cur="USD">Dólar ($)</button></div>' +
+      '<p class="hint">Os valores são guardados e introduzidos em euros. Em dólares, a app converte ao câmbio do dia: ' + fxText() + '. Esta escolha vale só para este telemóvel.</p>' +
       (mode === 'cloud' ? '<p class="hint">Os dados são partilhados por todos os que entram com esta conta e atualizam-se sozinhos a cada 20 segundos.</p>' : '') +
       '<div class="form-section">Cópia de segurança</div>' +
       '<button class="btn-secondary wide-btn" style="margin-top:0" data-action="copy-backup">Copiar cópia de segurança</button>' +
@@ -1752,6 +1782,7 @@ function nshBoot() {
       case 'close-confirm': closeModal(); confirmCallback = null; break;
       case 'do-confirm': { const cb = confirmCallback; closeModal(); confirmCallback = null; if (cb) cb(); break; }
       case 'copy-report': copyText(reportPlainText(simulate()), 'Relatório copiado.'); break;
+      case 'set-cur': viewCur = btn.dataset.cur === 'USD' ? 'USD' : 'EUR'; lsSet(LS_CUR, viewCur); openSettingsModal(); render(); break;
       case 'copy-backup': copyText(JSON.stringify(state), 'Cópia de segurança copiada.'); break;
       case 'restore-backup': restoreBackup(); break;
       case 'logout': doLogout(); break;
@@ -1790,6 +1821,7 @@ function nshBoot() {
 
   /* ================= arranque ================= */
   async function init() {
+    loadFx();
     sim.period = PERIODS[lsGet(LS_PERIOD)] ? lsGet(LS_PERIOD) : 'monthly';
     if (mode === 'cloud') {
       const saved = lsGet(LS_SESSION);
