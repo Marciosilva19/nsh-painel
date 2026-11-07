@@ -32,6 +32,7 @@
   h1,h2,h3{margin:0;font-weight:600;letter-spacing:-0.01em;}
   p{margin:0;}
   button{font-family:inherit;cursor:pointer;color:inherit;}
+  button,a,input,select,textarea,label{touch-action:manipulation;}
   .num{font-variant-numeric:tabular-nums;}
   .good-text{color:var(--good);} .warn-text{color:var(--warn);} .amber-text{color:var(--amber);}
   :focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
@@ -274,7 +275,7 @@
   .cost-chain-head{display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;}
   .cost-chain-head > span{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;}
   .cost-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
-  .cost-row .cost-label{flex:1.4 1 0;min-width:0;font-size:15px;}
+  .cost-row .cost-label{flex:1.4 1 0;min-width:0;font-size:16px;}
   .cost-row .cost-value{flex:1 1 0;min-width:0;}
   .login-card h2{font-size:20px;margin-bottom:6px;}
   .login-card .tab-sub{margin-bottom:18px;}
@@ -600,8 +601,17 @@ function nshBoot() {
 
   /* ---- Supabase: sessão ---- */
   const sbBase = () => String(cfg.SUPABASE_URL).replace(/\/+$/, '');
+  /* Pedidos com limite de tempo: numa rede móvel, ou quando a app volta do segundo plano, um pedido pode ficar
+     pendurado para sempre. Sem limite, a sincronização ficava presa e os botões que a esperam deixavam de responder. */
+  const NET_TIMEOUT = 15000;
+  async function fetchT(url, opts) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), NET_TIMEOUT);
+    try { return await fetch(url, Object.assign({}, opts, { signal: ctl.signal })); }
+    catch (e) { const err = new Error('offline'); err.offline = true; err.timeout = ctl.signal.aborted; throw err; }
+    finally { clearTimeout(t); }
+  }
   async function sbAuth(grant, body) {
-    const r = await fetch(sbBase() + '/auth/v1/token?grant_type=' + grant, {
+    const r = await fetchT(sbBase() + '/auth/v1/token?grant_type=' + grant, {
       method: 'POST', headers: { 'apikey': cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
     if (!r.ok) { const e = new Error('auth ' + r.status); e.status = r.status; throw e; }
@@ -623,7 +633,7 @@ function nshBoot() {
   }
   function authErr() { const e = new Error('auth'); e.auth = true; return e; }
   async function rest(method, path, body, prefer) {
-    const call = tok => fetch(sbBase() + '/rest/v1/' + path, {
+    const call = tok => fetchT(sbBase() + '/rest/v1/' + path, {
       method,
       headers: Object.assign({ 'apikey': cfg.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' }, prefer ? { 'Prefer': prefer } : {}),
       body: body === undefined ? undefined : JSON.stringify(body)
@@ -648,7 +658,7 @@ function nshBoot() {
      nsh_reservations  1 linha por reserva */
   const MOVE_COLS = 'id,data,deleted,updated_at';
   const RES_COLS = 'id,data,status,deleted,updated_at';
-  const cloud = { catalog: null, catVersion: 0, moves: new Map(), res: new Map(), movesTs: null, resTs: null, timer: null, inflight: null, lastSync: null };
+  const cloud = { catalog: null, catVersion: 0, moves: new Map(), res: new Map(), movesTs: null, resTs: null, timer: null, inflight: null, inflightAt: 0, lastSync: null };
   const emptyCatalog = () => ({ version: 2, products: [], collections: [], fixedCosts: [], wholesaleShare: 0 });
   function catalogFrom(st) { return { version: 2, products: clone(st.products), collections: clone(st.collections), fixedCosts: clone(st.fixedCosts), wholesaleShare: st.wholesaleShare }; }
   function fixCatalog(c) {
@@ -693,8 +703,9 @@ function nshBoot() {
     return { maxTs, changed };
   }
   function syncNow(full) {
-    if (cloud.inflight) return cloud.inflight;
-    cloud.inflight = (async () => {
+    if (cloud.inflight && Date.now() - cloud.inflightAt < 3 * NET_TIMEOUT + 5000) return cloud.inflight;
+    cloud.inflightAt = Date.now();
+    const run = cloud.inflight = (async () => {
       try {
         if (full) { cloud.moves = new Map(); cloud.res = new Map(); cloud.movesTs = null; cloud.resTs = null; }
         const c = await pullCatalog(!!full);
@@ -703,9 +714,9 @@ function nshBoot() {
         cloud.movesTs = a.maxTs; cloud.resTs = b.maxTs; cloud.lastSync = new Date();
         if (full || c || a.changed || b.changed) { rebuildFromCloud(); return true; }
         return false;
-      } finally { cloud.inflight = null; }
+      } finally { if (cloud.inflight === run) cloud.inflight = null; }
     })();
-    return cloud.inflight;
+    return run;
   }
   async function catalogMutate(fn) {
     for (let i = 0; i < 6; i++) {
@@ -778,7 +789,7 @@ function nshBoot() {
       cloud.catalog = snap.catalog; cloud.moves = snap.moves; cloud.res = snap.res; rebuildFromCloud();
       if (e && e.auth) { onSessionLost(); return false; }
       render(); setChip('Erro ao guardar');
-      showToast('Sem ligação ao servidor: a alteração não foi guardada. Tenta de novo.', 'warn');
+      showToast(e && e.timeout ? 'O servidor não respondeu a tempo. Confirma daqui a pouco se a alteração aparece antes de a repetir.' : 'Sem ligação ao servidor: a alteração não foi guardada. Tenta de novo.', 'warn');
       syncNow().then(ch => { if (ch) scheduleRender(); }).catch(() => {});
       return false;
     }
@@ -794,7 +805,7 @@ function nshBoot() {
   }
   async function freshForCheck() {
     if (mode !== 'cloud') return;
-    try { if (await syncNow()) scheduleRender(); } catch (e) { if (e && e.auth) { onSessionLost(); throw e; } }
+    try { if (await Promise.race([syncNow(), sleep(8000).then(() => false)])) scheduleRender(); } catch (e) { if (e && e.auth) { onSessionLost(); throw e; } }
   }
 
   /* ---- sincronização automática ---- */
@@ -1440,14 +1451,18 @@ function nshBoot() {
     byId('mv-info').innerHTML = 'No sistema: <strong>' + s.phys + '</strong> físico · <strong>' + s.res + '</strong> reservado · <strong class="' + (s.avail < 0 ? 'warn-text' : '') + '">' + s.avail + '</strong> disponível' +
       (type === 'adjust' ? '<br>Indica quantas peças contaste. A diferença é registada automaticamente.' : '');
   }
-  let busy = false;
+  let busy = false, busyBtn = null;
   async function guarded(btn, fn) {
-    if (busy) return; busy = true; if (btn) btn.disabled = true;
-    try { await fn(); } finally { busy = false; if (btn && document.body.contains(btn)) btn.disabled = false; }
+    // Se a janela do pedido anterior já foi fechada, esse pedido não grava nada: não bloqueia este.
+    if (busy && !(busyBtn && !document.body.contains(busyBtn))) { showToast('A guardar a alteração anterior. Aguarda um momento.'); return; }
+    const token = {}; busy = token; busyBtn = btn; const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'A verificar...'; }
+    try { await fn(); } finally { if (busy === token) { busy = false; busyBtn = null; } if (btn && document.body.contains(btn)) { btn.disabled = false; btn.textContent = label; } }
   }
   async function saveMove() {
-    const type = getVal('mv-type');
+    const type = getVal('mv-type'), sheetEl = modalRoot.querySelector('.modal-sheet');
     if (type !== 'in' && type !== 'return') { try { await freshForCheck(); } catch (e) { return; } }
+    if (!sheetEl || !document.body.contains(sheetEl)) return; // a janela foi fechada enquanto se verificava o stock
     const p = findProduct(getVal('mv-prod')), v = findVariant(p, getVal('mv-var'));
     if (!p || !v) { showToast('Escolhe o produto e a variante.', 'warn'); return; }
     const s = computeStock()[v.id] || blank;
